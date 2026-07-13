@@ -19,7 +19,10 @@ export function StudentsPage() {
     [],
   );
   const { data: subjects } = useAsync<Subject[]>(() => window.api.subjects.list(), []);
-  const { data: grades } = useAsync<Grade[]>(() => window.api.grades.listAll(), []);
+  const { data: grades, reload: reloadGrades } = useAsync<Grade[]>(
+    () => window.api.grades.listAll(),
+    [],
+  );
   const { data: teachers } = useAsync(() => window.api.teachers.list(), []);
   const [formError, setFormError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Student | null>(null);
@@ -85,7 +88,7 @@ export function StudentsPage() {
   }
 
   async function refreshDetail() {
-    await reload();
+    await Promise.all([reload(), reloadGrades()]);
   }
 
   return (

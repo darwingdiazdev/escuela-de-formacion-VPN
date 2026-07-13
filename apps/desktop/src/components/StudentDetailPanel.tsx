@@ -7,6 +7,10 @@ import {
   groupCourseSummaries,
   type StudentCourseSummary,
 } from "../studentDetail";
+import {
+  buildStudentDetailWorkbook,
+  defaultStudentDetailExportFileName,
+} from "../exportStudentDetailExcel";
 import { formatGradeStatus } from "../gradeForm";
 import { PensumProgressSummary } from "./PensumProgressSummary";
 
@@ -93,6 +97,7 @@ export function StudentDetailPanel({
 }: StudentDetailPanelProps) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const studentGrades = useMemo(
     () => grades.filter((grade) => String(grade.studentId) === String(student.id)),
@@ -147,9 +152,36 @@ export function StudentDetailPanel({
     }
   }
 
+  async function handleExportExcel() {
+    setActionError(null);
+    setExporting(true);
+    try {
+      const buffer = buildStudentDetailWorkbook(student, subjects, studentGrades, teachers);
+      const result = await window.api.export.saveExcel(
+        new Uint8Array(buffer),
+        defaultStudentDetailExportFileName(student),
+      );
+      if (!result.saved) return;
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Error al exportar Excel");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="student-detail-panel">
-      <p className="page-subtitle">CI: {student.ci}</p>
+      <div className="student-detail-header">
+        <p className="page-subtitle">CI: {student.ci}</p>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={exporting || busy}
+          onClick={handleExportExcel}
+        >
+          {exporting ? "Exportando..." : "Exportar Excel"}
+        </button>
+      </div>
 
       {pensumProgress.length > 0 && (
         <section className="detail-section pensum-progress-section">

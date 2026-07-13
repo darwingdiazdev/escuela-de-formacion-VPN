@@ -45,7 +45,6 @@ export default function App() {
           ))}
         </nav>
         <footer className="sidebar-footer">
-          <p className="sidebar-footer-system">Escuela de formación bíblica "Equipados para la obra"</p>
           <div className="session-info">
             <span>{user.firstName} {user.lastName}</span>
             <span className="badge">{user.role}</span>

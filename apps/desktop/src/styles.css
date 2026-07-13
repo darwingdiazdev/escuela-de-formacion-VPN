@@ -50,11 +50,30 @@ textarea {
 
 .sidebar-brand {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.25rem;
+  padding: 0 0.15rem;
+}
+
+.sidebar-brand-logos {
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  margin-bottom: 1.25rem;
-  padding: 0 0.15rem;
+  width: 100%;
+}
+
+.sidebar-brand-tagline {
+  margin: 0;
+  max-width: 100%;
+  text-align: center;
+  font-family: "Great Vibes", "Segoe Script", "Lucida Handwriting", cursive;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  color: var(--brand-navy);
+  letter-spacing: 0.02em;
 }
 
 .sidebar-logo {
@@ -442,6 +461,53 @@ th {
   opacity: 0.85;
 }
 
+.enrollment-badges-compact {
+  max-width: 240px;
+}
+
+.enrollment-more {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.enrollment-more-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f2f4f7;
+  color: #475467;
+  border: 1px solid #d0d5dd;
+  cursor: default;
+}
+
+.enrollment-more-popup {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 180px;
+  max-width: 280px;
+  padding: 0.45rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.enrollment-more:hover .enrollment-more-popup,
+.enrollment-more:focus-within .enrollment-more-popup {
+  display: flex;
+}
+
 .grade-row-pass {
   background: #ecfdf3;
 }
@@ -485,9 +551,13 @@ th {
 .student-detail-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.65rem;
+}
+
+.student-detail-header .page-subtitle {
+  margin: 0;
 }
 
 .student-detail-header h3 {
@@ -817,13 +887,6 @@ th {
   margin-top: auto;
   padding-top: 1rem;
   border-top: 1px solid rgba(30, 58, 95, 0.1);
-}
-
-.sidebar-footer-system {
-  margin: 0 0 0.75rem;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  line-height: 1.35;
 }
 
 .logout-btn {
