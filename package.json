@@ -1,0 +1,23 @@
+{
+  "name": "gestion-notas",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:desktop": "turbo run dev --filter=@gestion-notas/desktop",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "seed:subjects": "pnpm --filter @gestion-notas/api run seed:subjects",
+    "seed:teachers": "pnpm --filter @gestion-notas/api run seed:teachers",
+    "seed:pensum": "pnpm run seed:subjects && pnpm run seed:teachers"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@gestion-notas/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "seed:subjects": "tsx src/scripts/seed-subjects.ts",
+    "seed:teachers": "tsx src/scripts/seed-teachers.ts"
+  },
+  "dependencies": {
+    "@gestion-notas/application": "workspace:*",
+    "@gestion-notas/database": "workspace:*",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@gestion-notas/typescript-config": "workspace:*",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

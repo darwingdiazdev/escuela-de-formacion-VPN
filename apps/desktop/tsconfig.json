@@ -1,0 +1,11 @@
+{
+  "extends": "@gestion-notas/typescript-config/react.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "electron", "index.html", "vite.config.ts"]
+}
