@@ -17,6 +17,7 @@ export const emptySubjectForm = {
   code: "",
   name: "",
   pensum: "Pensum 2" as PensumOption,
+  priceUsd: String(DEFAULT_SUBJECT_PRICE_USD),
   offerings: [] as SubjectOfferingFormState[],
   isActive: true,
 };

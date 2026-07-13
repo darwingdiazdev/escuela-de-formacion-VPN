@@ -5,6 +5,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "dev:desktop": "turbo run dev --filter=@gestion-notas/desktop",
+    "dev:web": "turbo run dev --filter=@gestion-notas/api --filter=@gestion-notas/web",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",

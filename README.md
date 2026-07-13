@@ -1,6 +1,7 @@
 # Gestión de Notas
 
-Monorepo con **Turborepo** para una aplicación de gestión de notas escolares. Arquitectura **orientada a eventos** con MongoDB local y app **desktop** (Electron) — sin necesidad de servidor por ahora.
+Monorepo con **Turborepo** para gestión de notas de la Escuela de formación bíblica.
+Incluye app **desktop (Electron)** y versión **web** desplegable en **Render + MongoDB Atlas**.
 
 ## Estructura
 
@@ -8,19 +9,20 @@ Monorepo con **Turborepo** para una aplicación de gestión de notas escolares. 
 gestion-notas/
 ├── apps/
 │   ├── desktop/     # App de escritorio (Electron + React)
-│   └── api/         # API REST (para cuando tengas servidor)
+│   ├── web/         # UI web (misma interfaz, consume la API)
+│   └── api/         # API REST (Render / local)
 └── packages/
-    ├── domain/      # Entidades y eventos de dominio
-    ├── events/      # Event bus y handlers
-    ├── database/    # Repositorios MongoDB + event store
-    └── application/ # Casos de uso (crear/editar entidades)
+    ├── domain/
+    ├── events/
+    ├── database/
+    └── application/
 ```
 
 ## Requisitos
 
 - Node.js 20+
 - pnpm 9+
-- [MongoDB Community Server](https://www.mongodb.com/try/download/community) corriendo en local (`mongodb://127.0.0.1:27017`)
+- MongoDB local **o** MongoDB Atlas
 
 ## Instalación
 
@@ -34,50 +36,35 @@ pnpm build
 ## Desarrollo
 
 ```bash
-# App desktop (requiere MongoDB local activo)
+# App desktop (Mongo local o Atlas vía MONGODB_URI)
 pnpm dev:desktop
 
-# API REST (opcional, para futuro)
+# API + web (navegador)
 pnpm --filter @gestion-notas/api dev
+pnpm --filter @gestion-notas/web dev
 ```
 
-## Entidades incluidas
+Usuario demo: `admin@VPN` / `admin123`
 
-| Entidad    | Operaciones      |
-|-----------|------------------|
-| Usuarios  | Crear, editar, listar |
-| Estudiantes | Crear, editar, listar |
-| Profesores  | Crear, editar, listar |
-| Materias    | Crear, editar, listar |
+## Despliegue gratis (Render + Atlas)
 
-## Arquitectura orientada a eventos
+Guía paso a paso: [`apps/api/DEPLOY.md`](apps/api/DEPLOY.md)
 
-Cada operación de creación/edición:
+Resumen:
 
-1. Ejecuta la lógica de negocio en `@gestion-notas/application`
-2. Persiste un **evento de dominio** en la colección `events` de MongoDB
-3. Publica el evento en el **Event Bus** para handlers (auditoría, etc.)
+1. Crea un cluster free en MongoDB Atlas
+2. Conecta el repo en Render con el `render.yaml`
+3. Define `MONGODB_URI` (y `MONGODB_DB`)
+4. Abre la URL de Render — la UI y la API van juntas
 
-Eventos disponibles: `user.created`, `user.updated`, `student.created`, `student.updated`, `teacher.created`, `teacher.updated`, `subject.created`, `subject.updated`.
-
-## Flujo de uso recomendado
-
-1. Crear **usuarios** con rol `student` o `teacher`
-2. Crear el perfil de **estudiante** o **profesor** vinculado al usuario
-3. Crear **materias** y asignar profesor opcionalmente
-
-## Migración futura a servidor
-
-La capa `@gestion-notas/application` es compartida entre `desktop` y `api`. Cuando tengas presupuesto:
-
-1. Despliega `apps/api` en un VPS/cloud
-2. Apunta `MONGODB_URI` a MongoDB Atlas o un servidor dedicado
-3. Adapta el frontend para consumir la API en lugar de IPC de Electron
+La app de escritorio **no se pierde**; puede seguir usándose en las PCs de la iglesia.
 
 ## Scripts
 
 | Comando | Descripción |
 |---------|-------------|
-| `pnpm dev:desktop` | Inicia la app de escritorio |
+| `pnpm dev:desktop` | App de escritorio |
+| `pnpm --filter @gestion-notas/api dev` | API REST |
+| `pnpm --filter @gestion-notas/web dev` | UI web |
 | `pnpm build` | Compila todos los paquetes |
 | `pnpm typecheck` | Verifica tipos TypeScript |

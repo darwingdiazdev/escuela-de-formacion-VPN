@@ -82,11 +82,16 @@ export function SubjectsPage() {
     e.preventDefault();
     setFormError(null);
     try {
+      const priceUsd = Number(form.priceUsd);
+      if (!Number.isFinite(priceUsd) || priceUsd < 0) {
+        throw new Error("Ingrese un valor válido (0 o mayor).");
+      }
+
       const payload = {
         code: form.code.trim(),
         name: form.name.trim(),
         pensum: form.pensum,
-        priceUsd: DEFAULT_SUBJECT_PRICE_USD,
+        priceUsd,
         offerings: offeringsToPayload(form.offerings),
         isActive: form.isActive,
       };
@@ -132,6 +137,7 @@ export function SubjectsPage() {
       code: subject.code,
       name: subject.name,
       pensum,
+      priceUsd: String(subject.priceUsd ?? DEFAULT_SUBJECT_PRICE_USD),
       offerings,
       isActive: subject.isActive,
     });
@@ -219,8 +225,15 @@ export function SubjectsPage() {
                 </select>
               </label>
               <label>
-                Valor ($)
-                <input readOnly value={formatPrice(DEFAULT_SUBJECT_PRICE_USD)} />
+                Valor (USD)
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.priceUsd}
+                  onChange={(e) => setForm({ ...form, priceUsd: e.target.value })}
+                />
               </label>
             </div>
 

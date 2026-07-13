@@ -1,0 +1,12 @@
+{
+  "extends": "@gestion-notas/typescript-config/react.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@desktop/*": ["../desktop/src/*"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,23 @@
+# Render Blueprint — un solo servicio gratis (API + web)
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: gestion-notas
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: corepack enable && pnpm install && pnpm --filter @gestion-notas/web... build && pnpm --filter @gestion-notas/api... build
+    startCommand: pnpm --filter @gestion-notas/api start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: gestion_notas
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
