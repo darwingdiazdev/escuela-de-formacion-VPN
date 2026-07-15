@@ -3,9 +3,8 @@
   "compilerOptions": {
     "noEmit": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
-      "@desktop/*": ["../desktop/src/*"]
+      "@desktop/*": ["./../desktop/src/*"]
     }
   },
   "include": ["src"]

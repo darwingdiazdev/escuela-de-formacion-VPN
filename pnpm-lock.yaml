@@ -72,6 +72,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.7(react@19.2.7)
+      sweetalert2:
+        specifier: ^11.26.25
+        version: 11.26.25
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
@@ -118,6 +121,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.7(react@19.2.7)
+      sweetalert2:
+        specifier: ^11.26.25
+        version: 11.26.25
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
@@ -1332,6 +1338,9 @@ packages:
   sumchecker@3.0.1:
     resolution: {integrity: sha512-MvjXzkz/BOfyVDkG0oFOtBxHX2u3gKbMHIF/dXblZsgD3BWOFLmHovIpZY7BykJdAjcqRCBi1WYBNdEC9yI7vg==}
     engines: {node: '>= 8.0'}
+
+  sweetalert2@11.26.25:
+    resolution: {integrity: sha512-+hunCOJdJ6FLj04T9YSLvvZXRjsvIkTeTKP2e4VF8CaBias961BTnWiSFAy7F/CM5eq3QK2Rraoc5Gzftslvkg==}
 
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
@@ -2588,6 +2597,8 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
+
+  sweetalert2@11.26.25: {}
 
   tinyglobby@0.2.17:
     dependencies:

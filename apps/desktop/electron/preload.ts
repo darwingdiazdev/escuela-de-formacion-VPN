@@ -38,6 +38,7 @@ const api = {
     create: (input: CreateStudentInput) => ipcRenderer.invoke("students:create", input),
     update: (id: string, input: UpdateStudentInput) =>
       ipcRenderer.invoke("students:update", id, input),
+    delete: (id: string) => ipcRenderer.invoke("students:delete", id),
     setEnrollmentPayment: (
       studentId: string,
       subjectId: string,
@@ -59,12 +60,14 @@ const api = {
     create: (input: CreateTeacherInput) => ipcRenderer.invoke("teachers:create", input),
     update: (id: string, input: UpdateTeacherInput) =>
       ipcRenderer.invoke("teachers:update", id, input),
+    delete: (id: string) => ipcRenderer.invoke("teachers:delete", id),
   },
   subjects: {
     list: () => ipcRenderer.invoke("subjects:list"),
     create: (input: CreateSubjectInput) => ipcRenderer.invoke("subjects:create", input),
     update: (id: string, input: UpdateSubjectInput) =>
       ipcRenderer.invoke("subjects:update", id, input),
+    delete: (id: string) => ipcRenderer.invoke("subjects:delete", id),
   },
   grades: {
     list: () => ipcRenderer.invoke("grades:list"),

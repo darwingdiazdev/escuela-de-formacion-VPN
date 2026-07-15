@@ -237,6 +237,7 @@ export function GradesPage() {
         )}
         {grades && grades.length > 0 && (
           <>
+            <div className="table-scroll">
             <table>
               <thead>
                 <tr>
@@ -295,6 +296,7 @@ export function GradesPage() {
                 })}
               </tbody>
             </table>
+            </div>
             <Pagination
               page={page}
               totalPages={totalPages}

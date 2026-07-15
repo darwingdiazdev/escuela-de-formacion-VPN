@@ -96,6 +96,7 @@ export function installHttpApi() {
         request("/students", { method: "POST", body: JSON.stringify(input) }),
       update: (id: string, input: UpdateStudentInput) =>
         request(`/students/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+      delete: (id: string) => request(`/students/${id}`, { method: "DELETE" }),
       setEnrollmentPayment: (
         studentId: string,
         subjectId: string,
@@ -118,6 +119,7 @@ export function installHttpApi() {
         request("/teachers", { method: "POST", body: JSON.stringify(input) }),
       update: (id: string, input: UpdateTeacherInput) =>
         request(`/teachers/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+      delete: (id: string) => request(`/teachers/${id}`, { method: "DELETE" }),
     },
     subjects: {
       list: () => request("/subjects"),
@@ -125,6 +127,7 @@ export function installHttpApi() {
         request("/subjects", { method: "POST", body: JSON.stringify(input) }),
       update: (id: string, input: UpdateSubjectInput) =>
         request(`/subjects/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+      delete: (id: string) => request(`/subjects/${id}`, { method: "DELETE" }),
     },
     grades: {
       list: () => request("/grades"),

@@ -208,6 +208,15 @@ async function start() {
     }),
   );
 
+  app.delete(
+    "/students/:id",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      await service.deleteStudent(paramId(req));
+      res.status(204).send();
+    }),
+  );
+
   app.post(
     "/students/:id/enrollment-payment",
     requireAuth,
@@ -253,6 +262,15 @@ async function start() {
     }),
   );
 
+  app.delete(
+    "/teachers/:id",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      await service.deleteTeacher(paramId(req));
+      res.status(204).send();
+    }),
+  );
+
   app.get(
     "/subjects",
     requireAuth,
@@ -275,6 +293,15 @@ async function start() {
     requireAuth,
     asyncHandler(async (req, res) => {
       res.json(await service.updateSubject(paramId(req), req.body));
+    }),
+  );
+
+  app.delete(
+    "/subjects/:id",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      await service.deleteSubject(paramId(req));
+      res.status(204).send();
     }),
   );
 

@@ -384,6 +384,11 @@ class StudentRepository {
     const result = await database.collection("students").findOneAndUpdate({ _id: new ObjectId(id) }, { $set: payload }, { returnDocument: "after" });
     return toEntity(result);
   }
+  async delete(id) {
+    const database = getDatabase();
+    const result = await database.collection("students").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
 }
 class TeacherRepository {
   async create(input) {
@@ -422,6 +427,11 @@ class TeacherRepository {
     const database = getDatabase();
     const result = await database.collection("teachers").findOneAndUpdate({ _id: new ObjectId(id) }, { $set: { ...input, updatedAt: now() } }, { returnDocument: "after" });
     return toEntity(result);
+  }
+  async delete(id) {
+    const database = getDatabase();
+    const result = await database.collection("teachers").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
   }
 }
 class SubjectRepository {
@@ -465,6 +475,11 @@ class SubjectRepository {
     };
     const result = await database.collection("subjects").findOneAndUpdate({ _id: new ObjectId(id) }, { $set: payload }, { returnDocument: "after" });
     return toEntity(result);
+  }
+  async delete(id) {
+    const database = getDatabase();
+    const result = await database.collection("subjects").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
   }
 }
 class GradeRepository {
@@ -544,6 +559,20 @@ class GradeRepository {
     };
     const result = await database.collection("grades").findOneAndUpdate({ _id: new ObjectId(id) }, { $set: payload }, { returnDocument: "after" });
     return toEntity(result);
+  }
+  async deleteByStudentId(studentId) {
+    const database = getDatabase();
+    const result = await database.collection("grades").deleteMany({
+      studentId: { $in: referenceIdVariants(studentId) }
+    });
+    return result.deletedCount;
+  }
+  async deleteBySubjectId(subjectId) {
+    const database = getDatabase();
+    const result = await database.collection("grades").deleteMany({
+      subjectId: { $in: referenceIdVariants(subjectId) }
+    });
+    return result.deletedCount;
   }
 }
 class InMemoryEventBus {
@@ -734,6 +763,15 @@ class ApplicationService {
     }));
     return updated;
   }
+  async deleteStudent(id) {
+    const student = await this.students.findById(id);
+    if (!student)
+      throw new Error("Estudiante no encontrado.");
+    await this.grades.deleteByStudentId(id);
+    const deleted = await this.students.delete(id);
+    if (!deleted)
+      throw new Error("Estudiante no encontrado.");
+  }
   async setEnrollmentPayment(studentId, subjectId, church, paymentStatus) {
     const student = await this.students.findById(studentId);
     if (!student)
@@ -821,6 +859,37 @@ class ApplicationService {
     }));
     return updated;
   }
+  async deleteTeacher(id) {
+    const teacher = await this.teachers.findById(id);
+    if (!teacher)
+      throw new Error("Profesor no encontrado.");
+    const subjects = await this.subjects.findAll();
+    for (const subject of subjects) {
+      const offerings = subject.offerings ?? [];
+      const nextOfferings = offerings.map((offering) => String(offering.teacherId) === String(id) ? { church: offering.church } : offering);
+      const changed = offerings.some((offering) => String(offering.teacherId) === String(id));
+      if (changed) {
+        await this.subjects.update(subject.id, { offerings: nextOfferings });
+      }
+    }
+    const students = await this.students.findAll();
+    for (const student of students) {
+      const enrollments = student.enrollments ?? [];
+      const nextEnrollments = enrollments.map((enrollment) => {
+        if (String(enrollment.teacherId) !== String(id))
+          return enrollment;
+        const { teacherId: _teacherId, ...rest } = enrollment;
+        return rest;
+      });
+      const changed = enrollments.some((enrollment) => String(enrollment.teacherId) === String(id));
+      if (changed) {
+        await this.students.update(student.id, { enrollments: nextEnrollments });
+      }
+    }
+    const deleted = await this.teachers.delete(id);
+    if (!deleted)
+      throw new Error("Profesor no encontrado.");
+  }
   // --- Materias ---
   async listSubjects() {
     return this.subjects.findAll();
@@ -864,6 +933,31 @@ class ApplicationService {
       changes: input
     }));
     return updated;
+  }
+  async deleteSubject(id) {
+    const subject = await this.subjects.findById(id);
+    if (!subject)
+      throw new Error("Materia no encontrada.");
+    const teachers = await this.teachers.findAll();
+    for (const teacher of teachers) {
+      const qualified = teacher.qualifiedSubjectIds ?? [];
+      const nextQualified = qualified.filter((subjectId) => String(subjectId) !== String(id));
+      if (nextQualified.length !== qualified.length) {
+        await this.teachers.update(teacher.id, { qualifiedSubjectIds: nextQualified });
+      }
+    }
+    const students = await this.students.findAll();
+    for (const student of students) {
+      const enrollments = student.enrollments ?? [];
+      const nextEnrollments = enrollments.filter((enrollment) => String(enrollment.subjectId) !== String(id));
+      if (nextEnrollments.length !== enrollments.length) {
+        await this.students.update(student.id, { enrollments: nextEnrollments });
+      }
+    }
+    await this.grades.deleteBySubjectId(id);
+    const deleted = await this.subjects.delete(id);
+    if (!deleted)
+      throw new Error("Materia no encontrada.");
   }
   // --- Notas ---
   async listGrades() {
@@ -1429,6 +1523,7 @@ function registerIpcHandlers() {
   ipcMain.handle("students:list", () => service.listStudents());
   ipcMain.handle("students:create", (_e, input) => service.createStudent(input));
   ipcMain.handle("students:update", (_e, id, input) => service.updateStudent(id, input));
+  ipcMain.handle("students:delete", (_e, id) => service.deleteStudent(id));
   ipcMain.handle(
     "students:setEnrollmentPayment",
     (_e, studentId, subjectId, church, paymentStatus) => service.setEnrollmentPayment(studentId, subjectId, church, paymentStatus)
@@ -1440,9 +1535,11 @@ function registerIpcHandlers() {
   ipcMain.handle("teachers:list", () => service.listTeachers());
   ipcMain.handle("teachers:create", (_e, input) => service.createTeacher(input));
   ipcMain.handle("teachers:update", (_e, id, input) => service.updateTeacher(id, input));
+  ipcMain.handle("teachers:delete", (_e, id) => service.deleteTeacher(id));
   ipcMain.handle("subjects:list", () => service.listSubjects());
   ipcMain.handle("subjects:create", (_e, input) => service.createSubject(input));
   ipcMain.handle("subjects:update", (_e, id, input) => service.updateSubject(id, input));
+  ipcMain.handle("subjects:delete", (_e, id) => service.deleteSubject(id));
   ipcMain.handle("grades:list", () => service.listGrades());
   ipcMain.handle("grades:listAll", () => service.listAllGrades());
   ipcMain.handle("grades:create", (_e, input) => service.createGrade(input));

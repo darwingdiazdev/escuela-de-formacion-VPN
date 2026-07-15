@@ -59,6 +59,7 @@ function registerIpcHandlers() {
   ipcMain.handle("students:list", () => service.listStudents());
   ipcMain.handle("students:create", (_e, input) => service.createStudent(input));
   ipcMain.handle("students:update", (_e, id, input) => service.updateStudent(id, input));
+  ipcMain.handle("students:delete", (_e, id) => service.deleteStudent(id));
   ipcMain.handle("students:setEnrollmentPayment", (_e, studentId, subjectId, church, paymentStatus) =>
     service.setEnrollmentPayment(studentId, subjectId, church, paymentStatus),
   );
@@ -69,10 +70,12 @@ function registerIpcHandlers() {
   ipcMain.handle("teachers:list", () => service.listTeachers());
   ipcMain.handle("teachers:create", (_e, input) => service.createTeacher(input));
   ipcMain.handle("teachers:update", (_e, id, input) => service.updateTeacher(id, input));
+  ipcMain.handle("teachers:delete", (_e, id) => service.deleteTeacher(id));
 
   ipcMain.handle("subjects:list", () => service.listSubjects());
   ipcMain.handle("subjects:create", (_e, input) => service.createSubject(input));
   ipcMain.handle("subjects:update", (_e, id, input) => service.updateSubject(id, input));
+  ipcMain.handle("subjects:delete", (_e, id) => service.deleteSubject(id));
 
   ipcMain.handle("grades:list", () => service.listGrades());
   ipcMain.handle("grades:listAll", () => service.listAllGrades());

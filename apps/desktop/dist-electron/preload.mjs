@@ -13,6 +13,7 @@ const api = {
     list: () => electron.ipcRenderer.invoke("students:list"),
     create: (input) => electron.ipcRenderer.invoke("students:create", input),
     update: (id, input) => electron.ipcRenderer.invoke("students:update", id, input),
+    delete: (id) => electron.ipcRenderer.invoke("students:delete", id),
     setEnrollmentPayment: (studentId, subjectId, church, paymentStatus) => electron.ipcRenderer.invoke(
       "students:setEnrollmentPayment",
       studentId,
@@ -25,12 +26,14 @@ const api = {
   teachers: {
     list: () => electron.ipcRenderer.invoke("teachers:list"),
     create: (input) => electron.ipcRenderer.invoke("teachers:create", input),
-    update: (id, input) => electron.ipcRenderer.invoke("teachers:update", id, input)
+    update: (id, input) => electron.ipcRenderer.invoke("teachers:update", id, input),
+    delete: (id) => electron.ipcRenderer.invoke("teachers:delete", id)
   },
   subjects: {
     list: () => electron.ipcRenderer.invoke("subjects:list"),
     create: (input) => electron.ipcRenderer.invoke("subjects:create", input),
-    update: (id, input) => electron.ipcRenderer.invoke("subjects:update", id, input)
+    update: (id, input) => electron.ipcRenderer.invoke("subjects:update", id, input),
+    delete: (id) => electron.ipcRenderer.invoke("subjects:delete", id)
   },
   grades: {
     list: () => electron.ipcRenderer.invoke("grades:list"),

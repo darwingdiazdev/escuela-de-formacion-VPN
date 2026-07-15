@@ -1,8 +1,11 @@
 import type { ChurchLocation, Subject, Teacher } from "@gestion-notas/domain";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { confirmAction, showError } from "../alerts";
+import { FiltersPanel } from "../components/FiltersPanel";
 import { Modal } from "../components/Modal";
 import { ErrorBanner, LoadingState, useAsync } from "../hooks";
 import { Pagination, usePagination } from "../pagination";
+import { includesSearch } from "../search";
 import {
   CHURCH_OPTIONS,
   DEFAULT_SUBJECT_PRICE_USD,
@@ -36,9 +39,33 @@ export function SubjectsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptySubjectForm);
   const [teacherCache, setTeacherCache] = useState<TeacherAssignmentCache>({});
+  const [nameFilter, setNameFilter] = useState("");
+  const [codeFilter, setCodeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [churchFilter, setChurchFilter] = useState("");
 
-  const { page, setPage, paginatedItems, total, totalPages, pageSize } = usePagination(subjects);
+  const filteredSubjects = useMemo(() => {
+    const list = subjects ?? [];
+    return list.filter((subject) => {
+      if (!includesSearch(subject.name, nameFilter)) return false;
+      if (!includesSearch(subject.code, codeFilter)) return false;
+      if (statusFilter === "active" && !subject.isActive) return false;
+      if (statusFilter === "inactive" && subject.isActive) return false;
+      if (churchFilter) {
+        const taught = (subject.offerings ?? []).some((offering) => offering.church === churchFilter);
+        if (!taught) return false;
+      }
+      return true;
+    });
+  }, [subjects, nameFilter, codeFilter, statusFilter, churchFilter]);
+
+  const { page, setPage, paginatedItems, total, totalPages, pageSize } =
+    usePagination(filteredSubjects);
   const formVisible = showForm || editing !== null;
+
+  useEffect(() => {
+    setPage(1);
+  }, [nameFilter, codeFilter, statusFilter, churchFilter, setPage]);
 
   const teacherLabel = (teacher: Teacher) => `${teacher.firstName} ${teacher.lastName} (${teacher.ci})`;
 
@@ -171,6 +198,24 @@ export function SubjectsPage() {
     return teachers.find((teacher) => String(teacher.id) === normalizedId);
   }
 
+  async function handleDelete(subject: Subject) {
+    const confirmed = await confirmAction({
+      title: "Eliminar materia",
+      text: `¿Eliminar la materia ${subject.name}? También se quitarán inscripciones y notas relacionadas.`,
+    });
+    if (!confirmed) return;
+
+    setFormError(null);
+    try {
+      await window.api.subjects.delete(subject.id);
+      await reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error al eliminar";
+      setFormError(message);
+      await showError("No se pudo eliminar", message);
+    }
+  }
+
   return (
     <>
       <div className="page-header">
@@ -183,7 +228,7 @@ export function SubjectsPage() {
           </button>
         </div>
       </div>
-      <ErrorBanner message={error} />
+      <ErrorBanner message={error ?? formError} />
 
       <Modal
         open={formVisible}
@@ -191,7 +236,7 @@ export function SubjectsPage() {
         onClose={closeForm}
         size="lg"
       >
-        {formError && <p className="field-hint error-text">{formError}</p>}
+        {formError && formVisible && <p className="field-hint error-text">{formError}</p>}
         <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <label>
@@ -327,6 +372,54 @@ export function SubjectsPage() {
         )}
         {subjects && subjects.length > 0 && (
           <>
+            <FiltersPanel>
+              <div className="filters-bar">
+                <label>
+                  Nombre
+                  <input
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                    placeholder="Buscar por nombre"
+                  />
+                </label>
+                <label>
+                  Código
+                  <input
+                    value={codeFilter}
+                    onChange={(e) => setCodeFilter(e.target.value)}
+                    placeholder="Buscar por código"
+                  />
+                </label>
+                <label>
+                  Estado
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+                  >
+                    <option value="all">Todos</option>
+                    <option value="active">Activa</option>
+                    <option value="inactive">Inactiva</option>
+                  </select>
+                </label>
+                <label>
+                  Iglesia
+                  <select value={churchFilter} onChange={(e) => setChurchFilter(e.target.value)}>
+                    <option value="">Todas</option>
+                    {CHURCH_OPTIONS.map((church) => (
+                      <option key={church} value={church}>
+                        {church}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </FiltersPanel>
+
+            {filteredSubjects.length === 0 ? (
+              <p className="filters-empty">Ninguna materia coincide con los filtros.</p>
+            ) : (
+              <>
+            <div className="table-scroll">
             <table>
               <thead>
                 <tr>
@@ -389,15 +482,21 @@ export function SubjectsPage() {
                         )}
                       </td>
                       <td>
-                        <button className="btn btn-secondary btn-sm" onClick={() => startEdit(subject)}>
-                          Editar
-                        </button>
+                        <div className="table-actions">
+                          <button className="btn btn-secondary btn-sm" onClick={() => startEdit(subject)}>
+                            Editar
+                          </button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(subject)}>
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            </div>
             <Pagination
               page={page}
               totalPages={totalPages}
@@ -405,6 +504,8 @@ export function SubjectsPage() {
               pageSize={pageSize}
               onPageChange={setPage}
             />
+              </>
+            )}
           </>
         )}
       </div>

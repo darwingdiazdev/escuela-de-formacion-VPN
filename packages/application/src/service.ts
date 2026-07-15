@@ -176,6 +176,15 @@ export class ApplicationService {
     return updated;
   }
 
+  async deleteStudent(id: string): Promise<void> {
+    const student = await this.students.findById(id);
+    if (!student) throw new Error("Estudiante no encontrado.");
+
+    await this.grades.deleteByStudentId(id);
+    const deleted = await this.students.delete(id);
+    if (!deleted) throw new Error("Estudiante no encontrado.");
+  }
+
   async setEnrollmentPayment(
     studentId: string,
     subjectId: string,
@@ -301,6 +310,42 @@ export class ApplicationService {
     return updated;
   }
 
+  async deleteTeacher(id: string): Promise<void> {
+    const teacher = await this.teachers.findById(id);
+    if (!teacher) throw new Error("Profesor no encontrado.");
+
+    const subjects = await this.subjects.findAll();
+    for (const subject of subjects) {
+      const offerings = subject.offerings ?? [];
+      const nextOfferings = offerings.map((offering) =>
+        String(offering.teacherId) === String(id)
+          ? { church: offering.church }
+          : offering,
+      );
+      const changed = offerings.some((offering) => String(offering.teacherId) === String(id));
+      if (changed) {
+        await this.subjects.update(subject.id, { offerings: nextOfferings });
+      }
+    }
+
+    const students = await this.students.findAll();
+    for (const student of students) {
+      const enrollments = student.enrollments ?? [];
+      const nextEnrollments = enrollments.map((enrollment) => {
+        if (String(enrollment.teacherId) !== String(id)) return enrollment;
+        const { teacherId: _teacherId, ...rest } = enrollment;
+        return rest;
+      });
+      const changed = enrollments.some((enrollment) => String(enrollment.teacherId) === String(id));
+      if (changed) {
+        await this.students.update(student.id, { enrollments: nextEnrollments });
+      }
+    }
+
+    const deleted = await this.teachers.delete(id);
+    if (!deleted) throw new Error("Profesor no encontrado.");
+  }
+
   // --- Materias ---
 
   async listSubjects(): Promise<Subject[]> {
@@ -359,6 +404,35 @@ export class ApplicationService {
     );
 
     return updated;
+  }
+
+  async deleteSubject(id: string): Promise<void> {
+    const subject = await this.subjects.findById(id);
+    if (!subject) throw new Error("Materia no encontrada.");
+
+    const teachers = await this.teachers.findAll();
+    for (const teacher of teachers) {
+      const qualified = teacher.qualifiedSubjectIds ?? [];
+      const nextQualified = qualified.filter((subjectId) => String(subjectId) !== String(id));
+      if (nextQualified.length !== qualified.length) {
+        await this.teachers.update(teacher.id, { qualifiedSubjectIds: nextQualified });
+      }
+    }
+
+    const students = await this.students.findAll();
+    for (const student of students) {
+      const enrollments = student.enrollments ?? [];
+      const nextEnrollments = enrollments.filter(
+        (enrollment) => String(enrollment.subjectId) !== String(id),
+      );
+      if (nextEnrollments.length !== enrollments.length) {
+        await this.students.update(student.id, { enrollments: nextEnrollments });
+      }
+    }
+
+    await this.grades.deleteBySubjectId(id);
+    const deleted = await this.subjects.delete(id);
+    if (!deleted) throw new Error("Materia no encontrada.");
   }
 
   // --- Notas ---

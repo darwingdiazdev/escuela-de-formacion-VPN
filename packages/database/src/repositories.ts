@@ -175,6 +175,12 @@ export class StudentRepository {
     );
     return toEntity<Student>(result);
   }
+
+  async delete(id: string): Promise<boolean> {
+    const database = getDatabase();
+    const result = await database.collection("students").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
 }
 
 export class TeacherRepository {
@@ -222,6 +228,12 @@ export class TeacherRepository {
       { returnDocument: "after" },
     );
     return toEntity<Teacher>(result);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const database = getDatabase();
+    const result = await database.collection("teachers").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
   }
 }
 
@@ -274,6 +286,12 @@ export class SubjectRepository {
       { returnDocument: "after" },
     );
     return toEntity<Subject>(result);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const database = getDatabase();
+    const result = await database.collection("subjects").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
   }
 }
 
@@ -402,5 +420,21 @@ export class GradeRepository {
       { returnDocument: "after" },
     );
     return toEntity<Grade>(result);
+  }
+
+  async deleteByStudentId(studentId: string): Promise<number> {
+    const database = getDatabase();
+    const result = await database.collection("grades").deleteMany({
+      studentId: { $in: referenceIdVariants(studentId) },
+    });
+    return result.deletedCount;
+  }
+
+  async deleteBySubjectId(subjectId: string): Promise<number> {
+    const database = getDatabase();
+    const result = await database.collection("grades").deleteMany({
+      subjectId: { $in: referenceIdVariants(subjectId) },
+    });
+    return result.deletedCount;
   }
 }

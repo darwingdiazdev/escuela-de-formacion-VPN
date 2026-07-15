@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "seed:subjects": "tsx src/scripts/seed-subjects.ts",
-    "seed:teachers": "tsx src/scripts/seed-teachers.ts"
+    "seed:teachers": "tsx src/scripts/seed-teachers.ts",
+    "seed:demo": "tsx src/scripts/seed-demo-data.ts"
   },
   "dependencies": {
     "@gestion-notas/application": "workspace:*",
