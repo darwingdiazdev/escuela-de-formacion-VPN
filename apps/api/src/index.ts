@@ -317,23 +317,30 @@ async function start() {
   ];
   const webDist = webDistCandidates.find((candidate) => existsSync(candidate));
 
+  function isApiPath(pathname: string): boolean {
+    return [
+      "/health",
+      "/auth",
+      "/users",
+      "/students",
+      "/teachers",
+      "/subjects",
+      "/grades",
+    ].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  }
+
   if (webDist) {
     app.use(express.static(webDist));
-    app.get("/{*splat}", (req, res, next) => {
-      if (req.method !== "GET") {
+    app.use((req, res, next) => {
+      if (req.method !== "GET" && req.method !== "HEAD") {
         next();
         return;
       }
-      const requestPath = req.path;
-      if (
-        requestPath.startsWith("/auth") ||
-        requestPath.startsWith("/students") ||
-        requestPath.startsWith("/teachers") ||
-        requestPath.startsWith("/subjects") ||
-        requestPath.startsWith("/grades") ||
-        requestPath.startsWith("/users") ||
-        requestPath.startsWith("/health")
-      ) {
+      if (isApiPath(req.path)) {
+        next();
+        return;
+      }
+      if (path.extname(req.path)) {
         next();
         return;
       }
@@ -341,6 +348,14 @@ async function start() {
     });
     console.log(`UI web servida desde ${webDist}`);
   }
+
+  app.use((req, res) => {
+    if (isApiPath(req.path)) {
+      res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.path}` });
+      return;
+    }
+    res.status(404).send("Not Found");
+  });
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);
