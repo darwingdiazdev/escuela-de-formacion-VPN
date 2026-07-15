@@ -7,7 +7,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [email, setEmail] = useState("admin@VPN");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@VPN"
+              placeholder="correo@ejemplo.com"
               required
               autoFocus
             />
@@ -66,11 +66,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             {loading ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
-
-        <div className="login-demo">
-          <p>Usuario demo</p>
-          <code>admin@VPN</code> / <code>admin123</code>
-        </div>
       </div>
     </div>
   );
