@@ -33,7 +33,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         <div className="login-brand">
           <img src={LOGO_EDUCACION} alt="Educación Cristiana" className="login-logo" />
         </div>
-        <h1>Gestión de Notas</h1>
+        <h1 className="login-title">
+          Escuela de formación bíblica &ldquo;Equipados para la obra&rdquo;
+        </h1>
         <p className="login-subtitle">Inicia sesión para continuar</p>
 
         <form onSubmit={handleSubmit} className="login-form">
