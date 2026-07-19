@@ -50,14 +50,19 @@ async function main() {
         name: subject.name,
         pensum: subject.pensum,
         priceUsd: subject.priceUsd,
+        isActive: subject.isActive,
       });
-      console.log(`  actualizada: ${subject.code} — ${subject.name} [${subject.pensum}, $${subject.priceUsd}]`);
+      const estado = subject.isActive ? "activa" : "inactiva";
+      console.log(
+        `  actualizada: ${subject.code} — ${subject.name} [${subject.pensum}, $${subject.priceUsd}, ${estado}]`,
+      );
       updated++;
       continue;
     }
 
     await service.createSubject({ ...subject, offerings: [] });
-    console.log(`  creada: ${subject.code} — ${subject.name} [${subject.pensum}]`);
+    const estado = subject.isActive ? "activa" : "inactiva";
+    console.log(`  creada: ${subject.code} — ${subject.name} [${subject.pensum}, ${estado}]`);
     created++;
   }
 
