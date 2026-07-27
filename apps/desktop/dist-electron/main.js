@@ -290,6 +290,23 @@ function normalizeOfferings(offerings) {
     return teacherId ? { church: offering.church, teacherId } : { church: offering.church };
   });
 }
+function normalizeTopics(topics) {
+  return topics.map((topic) => ({
+    content: typeof topic.content === "string" ? topic.content.trim() : ""
+  })).filter((topic) => topic.content.length > 0).map((topic, index) => ({
+    order: index + 1,
+    content: topic.content
+  }));
+}
+function withSubjectDefaults(subject) {
+  if (!subject)
+    return null;
+  return {
+    ...subject,
+    offerings: subject.offerings ?? [],
+    topics: subject.topics ?? []
+  };
+}
 class UserRepository {
   async create(input) {
     const database = getDatabase();
@@ -444,6 +461,7 @@ class SubjectRepository {
       pensum: input.pensum,
       priceUsd: input.priceUsd,
       offerings: normalizeOfferings(input.offerings ?? []),
+      topics: normalizeTopics(input.topics ?? []),
       isActive: input.isActive ?? true,
       createdAt: timestamp,
       updatedAt: timestamp
@@ -454,27 +472,28 @@ class SubjectRepository {
   async findAll() {
     const database = getDatabase();
     const docs = await database.collection("subjects").find().sort({ name: 1 }).toArray();
-    return toEntityList(docs);
+    return toEntityList(docs).map((subject) => withSubjectDefaults(subject));
   }
   async findByCode(code) {
     const database = getDatabase();
     const doc = await database.collection("subjects").findOne({ code });
-    return toEntity(doc);
+    return withSubjectDefaults(toEntity(doc));
   }
   async findById(id) {
     const database = getDatabase();
     const doc = await database.collection("subjects").findOne({ _id: new ObjectId(id) });
-    return toEntity(doc);
+    return withSubjectDefaults(toEntity(doc));
   }
   async update(id, input) {
     const database = getDatabase();
     const payload = {
       ...input,
       ...input.offerings ? { offerings: normalizeOfferings(input.offerings) } : {},
+      ...input.topics !== void 0 ? { topics: normalizeTopics(input.topics) } : {},
       updatedAt: now()
     };
     const result = await database.collection("subjects").findOneAndUpdate({ _id: new ObjectId(id) }, { $set: payload }, { returnDocument: "after" });
-    return toEntity(result);
+    return withSubjectDefaults(toEntity(result));
   }
   async delete(id) {
     const database = getDatabase();

@@ -9,14 +9,19 @@ import { includesSearch } from "../search";
 import {
   CHURCH_OPTIONS,
   DEFAULT_SUBJECT_PRICE_USD,
+  addSubjectTopic,
   buildTeacherAssignmentCache,
   emptySubjectForm,
   isChurchSelected,
+  nextTopicLabel,
   normalizeTeacherId,
   offeringsToPayload,
   PENSUM_OPTIONS,
+  removeSubjectTopic,
   setOfferingTeacher,
+  topicsToPayload,
   toggleChurchOffering,
+  updateSubjectTopicContent,
   type PensumOption,
   type TeacherAssignmentCache,
 } from "../subjectForm";
@@ -120,6 +125,7 @@ export function SubjectsPage() {
         pensum: form.pensum,
         priceUsd,
         offerings: offeringsToPayload(form.offerings),
+        topics: topicsToPayload(form.topics),
         isActive: form.isActive,
       };
 
@@ -166,6 +172,10 @@ export function SubjectsPage() {
       pensum,
       priceUsd: String(subject.priceUsd ?? DEFAULT_SUBJECT_PRICE_USD),
       offerings,
+      topics: (subject.topics ?? [])
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((topic) => ({ content: topic.content })),
       isActive: subject.isActive,
     });
     setTeacherCache(buildTeacherAssignmentCache(offerings));
@@ -189,6 +199,27 @@ export function SubjectsPage() {
     setForm((current) => ({
       ...current,
       offerings: setOfferingTeacher(current.offerings, church, teacherId),
+    }));
+  }
+
+  function addTopic() {
+    setForm((current) => ({
+      ...current,
+      topics: addSubjectTopic(current.topics),
+    }));
+  }
+
+  function updateTopicContent(index: number, content: string) {
+    setForm((current) => ({
+      ...current,
+      topics: updateSubjectTopicContent(current.topics, index, content),
+    }));
+  }
+
+  function removeTopic(index: number) {
+    setForm((current) => ({
+      ...current,
+      topics: removeSubjectTopic(current.topics, index),
     }));
   }
 
@@ -354,6 +385,41 @@ export function SubjectsPage() {
               </fieldset>
             )}
 
+            <fieldset className="form-section">
+              <legend>Temas</legend>
+              {form.topics.length === 0 && (
+                <p className="field-hint">Aún no hay temas. Agrega el TEMA 1 para comenzar.</p>
+              )}
+              <div className="topic-list">
+                {form.topics.map((topic, index) => (
+                  <div key={index} className="topic-item">
+                    <div className="topic-item-header">
+                      <strong>TEMA {index + 1}</strong>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => removeTopic(index)}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    <label>
+                      Desarrollo
+                      <textarea
+                        rows={3}
+                        value={topic.content}
+                        onChange={(e) => updateTopicContent(index, e.target.value)}
+                        placeholder={`Contenido del TEMA ${index + 1}`}
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="btn btn-secondary" onClick={addTopic}>
+                {nextTopicLabel(form.topics.length)}
+              </button>
+            </fieldset>
+
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={closeForm}>
                 Cancelar
@@ -428,6 +494,7 @@ export function SubjectsPage() {
                   <th>Estado</th>
                   <th>Iglesias</th>
                   <th>Pensum</th>
+                  <th>Temas</th>
                   <th>Valor</th>
                   <th>Profesores</th>
                   <th></th>
@@ -462,6 +529,13 @@ export function SubjectsPage() {
                       </td>
                       <td>
                         <span className="badge">{subject.pensum}</span>
+                      </td>
+                      <td>
+                        {(subject.topics ?? []).length > 0 ? (
+                          <span className="tag-badge">{(subject.topics ?? []).length}</span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
                       </td>
                       <td>{formatPrice(subject.priceUsd)}</td>
                       <td>

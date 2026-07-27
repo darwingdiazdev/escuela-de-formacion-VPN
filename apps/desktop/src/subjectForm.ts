@@ -13,12 +13,17 @@ export interface SubjectOfferingFormState {
   teacherId: string;
 }
 
+export interface SubjectTopicFormState {
+  content: string;
+}
+
 export const emptySubjectForm = {
   code: "",
   name: "",
   pensum: "Pensum 2" as PensumOption,
   priceUsd: String(DEFAULT_SUBJECT_PRICE_USD),
   offerings: [] as SubjectOfferingFormState[],
+  topics: [] as SubjectTopicFormState[],
   isActive: true,
 };
 
@@ -73,4 +78,39 @@ export function offeringsToPayload(offerings: SubjectOfferingFormState[]) {
     church: offering.church,
     teacherId: normalizeTeacherId(offering.teacherId) || undefined,
   }));
+}
+
+export function topicsToPayload(topics: SubjectTopicFormState[]) {
+  return topics
+    .map((topic) => topic.content.trim())
+    .filter((content) => content.length > 0)
+    .map((content, index) => ({
+      order: index + 1,
+      content,
+    }));
+}
+
+export function addSubjectTopic(topics: SubjectTopicFormState[]): SubjectTopicFormState[] {
+  return [...topics, { content: "" }];
+}
+
+export function updateSubjectTopicContent(
+  topics: SubjectTopicFormState[],
+  index: number,
+  content: string,
+): SubjectTopicFormState[] {
+  return topics.map((topic, topicIndex) =>
+    topicIndex === index ? { ...topic, content } : topic,
+  );
+}
+
+export function removeSubjectTopic(
+  topics: SubjectTopicFormState[],
+  index: number,
+): SubjectTopicFormState[] {
+  return topics.filter((_, topicIndex) => topicIndex !== index);
+}
+
+export function nextTopicLabel(topicsLength: number): string {
+  return `Agregar TEMA ${topicsLength + 1}`;
 }

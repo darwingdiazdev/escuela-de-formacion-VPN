@@ -10,6 +10,7 @@ import type {
   StudentSubjectEnrollment,
   Subject,
   SubjectChurchOffering,
+  SubjectTopic,
   Teacher,
   UpdateGradeInput,
   UpdateStudentInput,
@@ -60,6 +61,27 @@ function normalizeOfferings(offerings: SubjectChurchOffering[]): SubjectChurchOf
       ? { church: offering.church, teacherId }
       : { church: offering.church };
   });
+}
+
+function normalizeTopics(topics: SubjectTopic[]): SubjectTopic[] {
+  return topics
+    .map((topic) => ({
+      content: typeof topic.content === "string" ? topic.content.trim() : "",
+    }))
+    .filter((topic) => topic.content.length > 0)
+    .map((topic, index) => ({
+      order: index + 1,
+      content: topic.content,
+    }));
+}
+
+function withSubjectDefaults(subject: Subject | null): Subject | null {
+  if (!subject) return null;
+  return {
+    ...subject,
+    offerings: subject.offerings ?? [],
+    topics: subject.topics ?? [],
+  };
 }
 
 export class UserRepository {
@@ -247,6 +269,7 @@ export class SubjectRepository {
       pensum: input.pensum,
       priceUsd: input.priceUsd,
       offerings: normalizeOfferings(input.offerings ?? []),
+      topics: normalizeTopics(input.topics ?? []),
       isActive: input.isActive ?? true,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -258,19 +281,19 @@ export class SubjectRepository {
   async findAll(): Promise<Subject[]> {
     const database = getDatabase();
     const docs = await database.collection("subjects").find().sort({ name: 1 }).toArray();
-    return toEntityList<Subject>(docs);
+    return toEntityList<Subject>(docs).map((subject) => withSubjectDefaults(subject)!);
   }
 
   async findByCode(code: string): Promise<Subject | null> {
     const database = getDatabase();
     const doc = await database.collection("subjects").findOne({ code });
-    return toEntity<Subject>(doc);
+    return withSubjectDefaults(toEntity<Subject>(doc));
   }
 
   async findById(id: string): Promise<Subject | null> {
     const database = getDatabase();
     const doc = await database.collection("subjects").findOne({ _id: new ObjectId(id) });
-    return toEntity<Subject>(doc);
+    return withSubjectDefaults(toEntity<Subject>(doc));
   }
 
   async update(id: string, input: UpdateSubjectInput): Promise<Subject | null> {
@@ -278,6 +301,7 @@ export class SubjectRepository {
     const payload = {
       ...input,
       ...(input.offerings ? { offerings: normalizeOfferings(input.offerings) } : {}),
+      ...(input.topics !== undefined ? { topics: normalizeTopics(input.topics) } : {}),
       updatedAt: now(),
     };
     const result = await database.collection("subjects").findOneAndUpdate(
@@ -285,7 +309,7 @@ export class SubjectRepository {
       { $set: payload },
       { returnDocument: "after" },
     );
-    return toEntity<Subject>(result);
+    return withSubjectDefaults(toEntity<Subject>(result));
   }
 
   async delete(id: string): Promise<boolean> {

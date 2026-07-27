@@ -25,6 +25,11 @@ export interface SubjectChurchOffering {
   teacherId?: string;
 }
 
+export interface SubjectTopic {
+  order: number;
+  content: string;
+}
+
 export type PaymentStatus = "paid" | "debt";
 
 export interface StudentSubjectEnrollment {
@@ -85,6 +90,7 @@ export interface Subject extends BaseEntity {
   pensum: string;
   priceUsd: number;
   offerings: SubjectChurchOffering[];
+  topics: SubjectTopic[];
   isActive: boolean;
 }
 
@@ -106,8 +112,9 @@ export type UpdateStudentInput = Partial<CreateStudentInput>;
 export type CreateTeacherInput = Omit<Teacher, "id" | "createdAt" | "updatedAt">;
 export type UpdateTeacherInput = Partial<CreateTeacherInput>;
 
-export type CreateSubjectInput = Omit<Subject, "id" | "createdAt" | "updatedAt" | "isActive"> & {
+export type CreateSubjectInput = Omit<Subject, "id" | "createdAt" | "updatedAt" | "isActive" | "topics"> & {
   isActive?: boolean;
+  topics?: SubjectTopic[];
 };
 export type UpdateSubjectInput = Partial<CreateSubjectInput> & {
   isActive?: boolean;
