@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SidebarBrand } from "./components/SidebarBrand";
+import { NAV_ICONS } from "./navIcons";
 import { GradesPage } from "./pages/GradesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { StudentsPage } from "./pages/StudentsPage";
@@ -22,7 +23,9 @@ const sections: { id: Section; label: string; adminOnly?: boolean }[] = [
 export default function App() {
   const { user, login, logout, isAuthenticated } = useAuth();
   const [section, setSection] = useState<Section>("students");
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(() =>
+    window.matchMedia("(min-width: 901px)").matches,
+  );
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -32,12 +35,7 @@ export default function App() {
     }
 
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
-    };
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
 
   if (!isAuthenticated || !user) {
@@ -50,71 +48,53 @@ export default function App() {
   const activeSection = visibleSections.some((item) => item.id === section)
     ? section
     : visibleSections[0]?.id ?? "students";
-  const activeLabel =
-    visibleSections.find((item) => item.id === activeSection)?.label ?? "Menú";
-
-  function goToSection(id: Section) {
-    setSection(id);
-    setMenuOpen(false);
-  }
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
   return (
-    <div className={`app-shell${menuOpen ? " menu-open" : ""}`}>
-      <header className="mobile-topbar">
+    <div className={`app-shell${menuOpen ? " menu-open" : " menu-collapsed"}`}>
+      <aside className="sidebar" aria-hidden={false}>
         <button
           type="button"
-          className="hamburger-btn"
-          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-          aria-expanded={menuOpen}
+          className="sidebar-toggle"
+          aria-label={menuOpen ? "Contraer menú" : "Expandir menú"}
           onClick={() => setMenuOpen((open) => !open)}
         >
-          <span />
-          <span />
-          <span />
+          {menuOpen ? "«" : "»"}
         </button>
-        <strong className="mobile-topbar-title">{activeLabel}</strong>
-        <span className="mobile-topbar-spacer" />
-      </header>
-
-      <div
-        className="sidebar-backdrop"
-        onClick={() => setMenuOpen(false)}
-        aria-hidden={!menuOpen}
-      />
-
-      <aside className="sidebar" aria-hidden={false}>
-        <div className="sidebar-mobile-header">
-          <span>Menú</span>
-          <button
-            type="button"
-            className="sidebar-close-btn"
-            aria-label="Cerrar menú"
-            onClick={() => setMenuOpen(false)}
-          >
-            ✕
-          </button>
+        <div className="sidebar-top">
+          <SidebarBrand />
         </div>
-        <SidebarBrand />
         <nav className="sidebar-nav">
           {visibleSections.map((item) => (
             <button
               key={item.id}
               className={`nav-btn ${activeSection === item.id ? "active" : ""}`}
-              onClick={() => goToSection(item.id)}
+              title={item.label}
+              onClick={() => setSection(item.id)}
             >
-              {item.label}
+              <span className="nav-btn-icon">{NAV_ICONS[item.id]}</span>
+              <span className="nav-btn-label">{item.label}</span>
             </button>
           ))}
         </nav>
         <footer className="sidebar-footer">
-          <div className="session-info">
-            <span>
-              {user.firstName} {user.lastName}
+          <div className="session-info" title={`${user.firstName} ${user.lastName}`}>
+            <span className="session-initials">{initials}</span>
+            <span className="session-details">
+              <span>
+                {user.firstName} {user.lastName}
+              </span>
+              <span className="badge">{USER_ROLE_LABELS[user.role]}</span>
             </span>
-            <span className="badge">{USER_ROLE_LABELS[user.role]}</span>
           </div>
-          <button type="button" className="nav-btn logout-btn" onClick={logout}>
-            Cerrar sesión
+          <button
+            type="button"
+            className="nav-btn logout-btn"
+            title="Cerrar sesión"
+            onClick={logout}
+          >
+            <span className="nav-btn-icon">{NAV_ICONS.logout}</span>
+            <span className="nav-btn-label">Cerrar sesión</span>
           </button>
         </footer>
       </aside>

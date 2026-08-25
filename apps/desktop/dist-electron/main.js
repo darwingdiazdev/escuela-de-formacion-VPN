@@ -678,6 +678,19 @@ function createDomainEvent(type, aggregateId, aggregateType, payload, version = 
 function hashPassword(password) {
   return createHash("sha256").update(password).digest("hex");
 }
+const MIN_PASSWORD_LENGTH = 6;
+function toPublicUser(user) {
+  const { passwordHash: _passwordHash, ...publicUser } = user;
+  return publicUser;
+}
+function normalizeEmail(email) {
+  return email.trim();
+}
+function assertPassword(password) {
+  if (password.trim().length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+  }
+}
 class ApplicationService {
   eventBus;
   users = new UserRepository();
@@ -694,29 +707,33 @@ class ApplicationService {
   }
   // --- Usuarios ---
   async listUsers() {
-    return this.users.findAll();
+    const users = await this.users.findAll();
+    return users.map(toPublicUser);
   }
   async authenticateUser(email, password) {
-    const user = await this.users.findByEmail(email);
+    const user = await this.users.findByEmail(normalizeEmail(email));
     if (!user || !user.isActive) {
       throw new Error("Credenciales inválidas.");
     }
     if (user.passwordHash !== hashPassword(password)) {
       throw new Error("Credenciales inválidas.");
     }
-    const { passwordHash: _, ...publicUser } = user;
-    return publicUser;
+    return toPublicUser(user);
   }
   async createUser(input) {
-    const existing = await this.users.findByEmail(input.email);
+    const email = normalizeEmail(input.email);
+    if (!email)
+      throw new Error("El correo es obligatorio.");
+    assertPassword(input.password);
+    const existing = await this.users.findByEmail(email);
     if (existing) {
       throw new Error("Ya existe un usuario con ese correo.");
     }
     const user = await this.users.create({
-      email: input.email,
+      email,
       passwordHash: hashPassword(input.password),
-      firstName: input.firstName,
-      lastName: input.lastName,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
       role: input.role
     });
     await this.emit(createDomainEvent(EventTypes.USER_CREATED, user.id, "User", {
@@ -724,17 +741,54 @@ class ApplicationService {
       email: user.email,
       role: user.role
     }));
-    return user;
+    return toPublicUser(user);
   }
   async updateUser(id, input) {
-    const updated = await this.users.update(id, input);
+    const current = await this.users.findById(id);
+    if (!current)
+      throw new Error("Usuario no encontrado.");
+    const email = input.email !== void 0 ? normalizeEmail(input.email) : void 0;
+    if (email !== void 0 && !email) {
+      throw new Error("El correo es obligatorio.");
+    }
+    if (email && email !== current.email) {
+      const existing = await this.users.findByEmail(email);
+      if (existing && existing.id !== id) {
+        throw new Error("Ya existe un usuario con ese correo.");
+      }
+    }
+    const wouldLoseAdminAccess = current.role === "admin" && current.isActive && (input.isActive === false || input.role !== void 0 && input.role !== "admin");
+    if (wouldLoseAdminAccess) {
+      const users = await this.users.findAll();
+      const otherActiveAdmins = users.filter((user) => user.id !== id && user.role === "admin" && user.isActive);
+      if (otherActiveAdmins.length === 0) {
+        throw new Error("Debe existir al menos un administrador activo.");
+      }
+    }
+    const patch = {};
+    if (email !== void 0)
+      patch.email = email;
+    if (input.firstName !== void 0)
+      patch.firstName = input.firstName.trim();
+    if (input.lastName !== void 0)
+      patch.lastName = input.lastName.trim();
+    if (input.role !== void 0)
+      patch.role = input.role;
+    if (input.isActive !== void 0)
+      patch.isActive = input.isActive;
+    if (input.password !== void 0 && input.password.trim() !== "") {
+      assertPassword(input.password);
+      patch.passwordHash = hashPassword(input.password);
+    }
+    const updated = await this.users.update(id, patch);
     if (!updated)
       throw new Error("Usuario no encontrado.");
+    const { password: _password, ...safeChanges } = input;
     await this.emit(createDomainEvent(EventTypes.USER_UPDATED, id, "User", {
       userId: id,
-      changes: input
+      changes: safeChanges
     }));
-    return updated;
+    return toPublicUser(updated);
   }
   // --- Estudiantes ---
   async listStudents() {
