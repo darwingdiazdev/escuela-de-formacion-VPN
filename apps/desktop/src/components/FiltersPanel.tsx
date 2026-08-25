@@ -1,4 +1,5 @@
 import { ReactNode, useState } from "react";
+import { ExpandRowIcon } from "./IconButton";
 
 interface FiltersPanelProps {
   children: ReactNode;
@@ -18,7 +19,7 @@ export function FiltersPanel({ children, title = "Filtros" }: FiltersPanelProps)
       >
         <span>{title}</span>
         <span className="filters-panel-chevron" aria-hidden="true">
-          {open ? "▴" : "▾"}
+          <ExpandRowIcon expanded={open} />
         </span>
       </button>
       <div className="filters-panel-body">{children}</div>

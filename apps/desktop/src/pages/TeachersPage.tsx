@@ -1,10 +1,11 @@
 import type { Subject, Teacher } from "@gestion-notas/domain";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import { confirmAction, showError } from "../alerts";
 import { FiltersPanel } from "../components/FiltersPanel";
 import { Modal } from "../components/Modal";
-import { SubjectBadges } from "../components/SubjectBadges";
+import { DeleteIcon, EditIcon, ExpandRowIcon, IconButton } from "../components/IconButton";
 import { TeacherFormFields } from "../components/TeacherFormFields";
+import { TeacherSubjectsExpand } from "../components/TeacherSubjectsExpand";
 import { ErrorBanner, LoadingState, useAsync } from "../hooks";
 import { Pagination, usePagination } from "../pagination";
 import { includesSearch } from "../search";
@@ -27,6 +28,7 @@ export function TeachersPage() {
   const [nameFilter, setNameFilter] = useState("");
   const [ciFilter, setCiFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const subjectList = useMemo(() => subjects ?? [], [subjects]);
 
@@ -103,12 +105,27 @@ export function TeachersPage() {
     setFormError(null);
     try {
       await window.api.teachers.delete(teacher.id);
+      setExpandedIds((current) => {
+        if (!current.has(teacher.id)) return current;
+        const next = new Set(current);
+        next.delete(teacher.id);
+        return next;
+      });
       await reload();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al eliminar";
       setFormError(message);
       await showError("No se pudo eliminar", message);
     }
+  }
+
+  function toggleExpand(teacherId: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(teacherId)) next.delete(teacherId);
+      else next.add(teacherId);
+      return next;
+    });
   }
 
   return (
@@ -192,47 +209,62 @@ export function TeachersPage() {
                 <table>
                   <thead>
                     <tr>
+                      <th className="row-expand-col"></th>
                       <th>Nombre completo</th>
                       <th>Cédula</th>
                       <th>Teléfono</th>
                       <th>Correo</th>
-                      <th>Materias</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedItems.map((teacher) => (
-                      <tr key={teacher.id}>
-                        <td>
-                          {teacher.firstName} {teacher.lastName}
-                        </td>
-                        <td>{teacher.ci}</td>
-                        <td>{teacher.phone}</td>
-                        <td>{teacher.email}</td>
-                        <td>
-                          <SubjectBadges
-                            subjectIds={teacher.qualifiedSubjectIds ?? []}
-                            subjects={subjectList}
-                          />
-                        </td>
-                        <td>
-                          <div className="table-actions">
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => startEdit(teacher)}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="btn btn-danger btn-sm"
-                              onClick={() => handleDelete(teacher)}
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {paginatedItems.map((teacher) => {
+                      const expanded = expandedIds.has(teacher.id);
+                      return (
+                        <Fragment key={teacher.id}>
+                          <tr className={expanded ? "student-row is-expanded" : "student-row"}>
+                            <td>
+                              <button
+                                type="button"
+                                className="row-expand-btn"
+                                aria-expanded={expanded}
+                                aria-label={expanded ? "Ocultar materias" : "Ver materias que dicta"}
+                                onClick={() => toggleExpand(teacher.id)}
+                              >
+                                <ExpandRowIcon expanded={expanded} />
+                              </button>
+                            </td>
+                            <td>
+                              {teacher.firstName} {teacher.lastName}
+                            </td>
+                            <td>{teacher.ci}</td>
+                            <td>{teacher.phone}</td>
+                            <td>{teacher.email}</td>
+                            <td>
+                              <div className="table-actions">
+                                <IconButton label="Editar" onClick={() => startEdit(teacher)}>
+                                  <EditIcon />
+                                </IconButton>
+                                <IconButton
+                                  label="Eliminar"
+                                  variant="danger"
+                                  onClick={() => handleDelete(teacher)}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </div>
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr className="student-expand-row">
+                              <td colSpan={6}>
+                                <TeacherSubjectsExpand teacher={teacher} subjects={subjectList} />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
                 </div>

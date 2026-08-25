@@ -1,10 +1,11 @@
 import type { Grade, Student, Subject, Teacher } from "@gestion-notas/domain";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import { confirmAction, showError } from "../alerts";
 import { FiltersPanel } from "../components/FiltersPanel";
 import { Modal } from "../components/Modal";
-import { EnrollmentBadges } from "../components/EnrollmentBadges";
+import { DeleteIcon, EditIcon, ExpandRowIcon, IconButton } from "../components/IconButton";
 import { StudentDetailPanel } from "../components/StudentDetailPanel";
+import { StudentEnrollmentExpand } from "../components/StudentEnrollmentExpand";
 import { StudentFormFields } from "../components/StudentFormFields";
 import { ErrorBanner, LoadingState, useAsync } from "../hooks";
 import { Pagination, usePagination } from "../pagination";
@@ -32,6 +33,7 @@ export function StudentsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Student | null>(null);
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyStudentForm);
   const [nameFilter, setNameFilter] = useState("");
@@ -132,12 +134,27 @@ export function StudentsPage() {
     try {
       await window.api.students.delete(student.id);
       if (detailStudentId === student.id) setDetailStudentId(null);
+      setExpandedIds((current) => {
+        if (!current.has(student.id)) return current;
+        const next = new Set(current);
+        next.delete(student.id);
+        return next;
+      });
       await reload();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al eliminar";
       setFormError(message);
       await showError("No se pudo eliminar", message);
     }
+  }
+
+  function toggleExpand(studentId: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
   }
 
   function openDetail(student: Student) {
@@ -274,60 +291,66 @@ export function StudentsPage() {
                 <table>
                   <thead>
                     <tr>
+                      <th className="row-expand-col"></th>
                       <th>Nombre completo</th>
                       <th>CI</th>
-                      <th>Materias e iglesias</th>
-                      <th>Pago</th>
                       <th>Teléfono</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedItems.map((student) => {
-                      const debts = countDebts(student.enrollments ?? []);
+                      const expanded = expandedIds.has(student.id);
                       return (
-                        <tr key={student.id}>
-                          <td>
-                            {student.firstName} {student.lastName}
-                          </td>
-                          <td>{student.ci}</td>
-                          <td>
-                            <EnrollmentBadges
-                              enrollments={student.enrollments ?? []}
-                              subjects={subjectList}
-                            />
-                          </td>
-                          <td>
-                            {debts > 0 ? (
-                              <span className="payment-badge is-debt">{debts} deuda(s)</span>
-                            ) : (
-                              <span className="payment-badge is-paid">Al día</span>
-                            )}
-                          </td>
-                          <td>{student.phone}</td>
-                          <td>
-                            <div className="table-actions">
+                        <Fragment key={student.id}>
+                          <tr className={expanded ? "student-row is-expanded" : "student-row"}>
+                            <td>
                               <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => openDetail(student)}
+                                type="button"
+                                className="row-expand-btn"
+                                aria-expanded={expanded}
+                                aria-label={expanded ? "Ocultar materias" : "Ver materias y deudas"}
+                                onClick={() => toggleExpand(student.id)}
                               >
-                                Detalle
+                                <ExpandRowIcon expanded={expanded} />
                               </button>
-                              <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => startEdit(student)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleDelete(student)}
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                            </td>
+                            <td>
+                              {student.firstName} {student.lastName}
+                            </td>
+                            <td>{student.ci}</td>
+                            <td>{student.phone}</td>
+                            <td>
+                              <div className="table-actions table-actions-split">
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => openDetail(student)}
+                                >
+                                  Detalle
+                                </button>
+                                <div className="table-actions">
+                                  <IconButton label="Editar" onClick={() => startEdit(student)}>
+                                    <EditIcon />
+                                  </IconButton>
+                                  <IconButton
+                                    label="Eliminar"
+                                    variant="danger"
+                                    onClick={() => handleDelete(student)}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr className="student-expand-row">
+                              <td colSpan={5}>
+                                <StudentEnrollmentExpand student={student} subjects={subjectList} />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
                   </tbody>

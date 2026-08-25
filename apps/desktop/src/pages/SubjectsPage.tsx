@@ -1,8 +1,10 @@
 import type { ChurchLocation, Subject, Teacher } from "@gestion-notas/domain";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
 import { confirmAction, showError } from "../alerts";
 import { FiltersPanel } from "../components/FiltersPanel";
+import { DeleteIcon, EditIcon, ExpandRowIcon, IconButton } from "../components/IconButton";
 import { Modal } from "../components/Modal";
+import { SubjectOfferingExpand } from "../components/SubjectOfferingExpand";
 import { ErrorBanner, LoadingState, useAsync } from "../hooks";
 import { Pagination, usePagination } from "../pagination";
 import { includesSearch } from "../search";
@@ -45,6 +47,7 @@ export function SubjectsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptySubjectForm);
   const [teacherCache, setTeacherCache] = useState<TeacherAssignmentCache>({});
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [nameFilter, setNameFilter] = useState("");
   const [codeFilter, setCodeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -224,12 +227,6 @@ export function SubjectsPage() {
     }));
   }
 
-  function findTeacherById(teacherId: string | null | undefined) {
-    const normalizedId = normalizeTeacherId(teacherId);
-    if (!normalizedId || !teachers) return undefined;
-    return teachers.find((teacher) => String(teacher.id) === normalizedId);
-  }
-
   async function handleDelete(subject: Subject) {
     const confirmed = await confirmAction({
       title: "Eliminar materia",
@@ -240,12 +237,27 @@ export function SubjectsPage() {
     setFormError(null);
     try {
       await window.api.subjects.delete(subject.id);
+      setExpandedIds((current) => {
+        if (!current.has(subject.id)) return current;
+        const next = new Set(current);
+        next.delete(subject.id);
+        return next;
+      });
       await reload();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al eliminar";
       setFormError(message);
       await showError("No se pudo eliminar", message);
     }
+  }
+
+  function toggleExpand(subjectId: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(subjectId)) next.delete(subjectId);
+      else next.add(subjectId);
+      return next;
+    });
   }
 
   return (
@@ -490,83 +502,79 @@ export function SubjectsPage() {
             <table>
               <thead>
                 <tr>
+                  <th className="row-expand-col"></th>
                   <th>Código</th>
                   <th>Nombre</th>
                   <th>Estado</th>
-                  <th>Iglesias</th>
                   <th>Nivel</th>
                   <th>Temas</th>
                   <th>Valor</th>
-                  <th>Profesores</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.map((subject) => {
-                  const offerings = subject.offerings ?? [];
+                  const expanded = expandedIds.has(subject.id);
                   return (
-                    <tr key={subject.id}>
-                      <td>
-                        <span className="tag-badge">{subject.code}</span>
-                      </td>
-                      <td>{subject.name}</td>
-                      <td>
-                        <span className={`status-badge${subject.isActive ? " is-active" : " is-inactive"}`}>
-                          {subject.isActive ? "Activa" : "Inactiva"}
-                        </span>
-                      </td>
-                      <td>
-                        {offerings.length > 0 ? (
-                          <div className="badge-list">
-                            {offerings.map((offering) => (
-                              <span key={offering.church} className="tag-badge">
-                                {offering.church}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge">{formatNivelLabel(subject.pensum)}</span>
-                      </td>
-                      <td>
-                        {(subject.topics ?? []).length > 0 ? (
-                          <span className="tag-badge">{(subject.topics ?? []).length}</span>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td>{formatPrice(subject.priceUsd)}</td>
-                      <td>
-                        {offerings.length > 0 ? (
-                          <div className="offering-list">
-                            {offerings.map((offering) => {
-                              const teacher = findTeacherById(offering.teacherId);
-                              return (
-                                <div key={offering.church} className="offering-row">
-                                  <span className="offering-church">{offering.church}</span>
-                                  <span>{teacher ? teacherLabel(teacher) : "Sin asignar"}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="table-actions">
-                          <button className="btn btn-secondary btn-sm" onClick={() => startEdit(subject)}>
-                            Editar
+                    <Fragment key={subject.id}>
+                      <tr className={expanded ? "student-row is-expanded" : "student-row"}>
+                        <td>
+                          <button
+                            type="button"
+                            className="row-expand-btn"
+                            aria-expanded={expanded}
+                            aria-label={expanded ? "Ocultar iglesias y profesores" : "Ver iglesias y profesores"}
+                            onClick={() => toggleExpand(subject.id)}
+                          >
+                            <ExpandRowIcon expanded={expanded} />
                           </button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(subject)}>
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                        <td>
+                          <span className="tag-badge">{subject.code}</span>
+                        </td>
+                        <td>{subject.name}</td>
+                        <td>
+                          <span className={`status-badge${subject.isActive ? " is-active" : " is-inactive"}`}>
+                            {subject.isActive ? "Activa" : "Inactiva"}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="badge">{formatNivelLabel(subject.pensum)}</span>
+                        </td>
+                        <td>
+                          {(subject.topics ?? []).length > 0 ? (
+                            <span className="tag-badge">{(subject.topics ?? []).length}</span>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td>{formatPrice(subject.priceUsd)}</td>
+                        <td>
+                          <div className="table-actions">
+                            <IconButton label="Editar" onClick={() => startEdit(subject)}>
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              label="Eliminar"
+                              variant="danger"
+                              onClick={() => handleDelete(subject)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </div>
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr className="student-expand-row">
+                          <td colSpan={8}>
+                            <SubjectOfferingExpand
+                              subject={subject}
+                              teachers={teachers ?? []}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

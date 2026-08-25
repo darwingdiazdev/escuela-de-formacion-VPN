@@ -1,14 +1,13 @@
 import type { Grade, Student, Subject, Teacher } from "@gestion-notas/domain";
-import { isPassingGrade } from "@gestion-notas/domain";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, Fragment, useMemo, useState } from "react";
+import { ExpandRowIcon } from "../components/IconButton";
 import { Modal } from "../components/Modal";
+import { StudentGradesExpand } from "../components/StudentGradesExpand";
 import { ErrorBanner, LoadingState, useAsync } from "../hooks";
 import { Pagination, usePagination } from "../pagination";
 import {
   emptyGradeForm,
-  formatGradeStatus,
   getEnrollmentOptionsForStudent,
-  resolveTeacherForEnrollment,
   gradeFormFromRecord,
   gradeFormToPayload,
   studentLabel,
@@ -34,28 +33,49 @@ export function GradesPage() {
   const [editing, setEditing] = useState<Grade | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyGradeForm);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const { page, setPage, paginatedItems, total, totalPages, pageSize } = usePagination(grades);
   const formVisible = showForm || editing !== null;
 
   const studentMap = useMemo(
-    () => new Map((students ?? []).map((student) => [student.id, student])),
+    () => new Map((students ?? []).map((student) => [String(student.id), student])),
     [students],
-  );
-  const subjectMap = useMemo(
-    () => new Map((subjects ?? []).map((subject) => [subject.id, subject])),
-    [subjects],
   );
   const teacherList = useMemo(() => teachers ?? [], [teachers]);
 
-  const selectedStudent = form.studentId ? studentMap.get(form.studentId) : undefined;
+  const groupedStudents = useMemo(() => {
+    const groups = new Map<string, Grade[]>();
+    for (const grade of grades ?? []) {
+      const studentId = String(grade.studentId);
+      const bucket = groups.get(studentId);
+      if (bucket) bucket.push(grade);
+      else groups.set(studentId, [grade]);
+    }
+
+    return Array.from(groups.entries())
+      .map(([studentId, studentGrades]) => ({ studentId, grades: studentGrades }))
+      .sort((a, b) => {
+        const studentA = studentMap.get(a.studentId);
+        const studentB = studentMap.get(b.studentId);
+        const nameA = studentA ? `${studentA.lastName} ${studentA.firstName}` : "";
+        const nameB = studentB ? `${studentB.lastName} ${studentB.firstName}` : "";
+        return nameA.localeCompare(nameB, "es");
+      });
+  }, [grades, studentMap]);
+
+  const { page, setPage, paginatedItems, total, totalPages, pageSize } =
+    usePagination(groupedStudents);
+
+  const selectedStudent = form.studentId
+    ? studentMap.get(String(form.studentId))
+    : undefined;
 
   const enrollmentOptions = useMemo(() => {
     const options = getEnrollmentOptionsForStudent(selectedStudent, subjects ?? []);
     if (!editing) {
       const usedKeys = new Set(
         (grades ?? [])
-          .filter((grade) => grade.studentId === form.studentId)
+          .filter((grade) => String(grade.studentId) === String(form.studentId))
           .map((grade) => `${grade.subjectId}|${grade.church}`),
       );
       return options.filter((option) => !usedKeys.has(option.key));
@@ -101,8 +121,13 @@ export function GradesPage() {
     setForm(gradeFormFromRecord(grade));
   }
 
-  function teacherLabel(teacher: Teacher): string {
-    return `${teacher.firstName} ${teacher.lastName}`;
+  function toggleExpand(studentId: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
   }
 
   async function handleExportExcel() {
@@ -241,57 +266,56 @@ export function GradesPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Estudiante</th>
-                  <th>Materia</th>
-                  <th>Iglesia</th>
-                  <th>Profesor</th>
-                  <th>Nota final</th>
-                  <th>Resultado</th>
-                  <th></th>
+                  <th className="row-expand-col"></th>
+                  <th>Nombre completo</th>
+                  <th>CI</th>
+                  <th>Notas</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedItems.map((grade) => {
-                  const student = studentMap.get(grade.studentId);
-                  const subject = subjectMap.get(grade.subjectId);
-                  const enrollment = student?.enrollments?.find(
-                    (item) =>
-                      String(item.subjectId) === String(grade.subjectId) &&
-                      item.church === grade.church,
-                  );
-                  const teacher = resolveTeacherForEnrollment(
-                    enrollment,
-                    subject,
-                    grade.church,
-                    teacherList,
-                  );
-                  const passed = isPassingGrade(grade.finalGrade);
+                {paginatedItems.map((group) => {
+                  const student = studentMap.get(group.studentId);
+                  const expanded = expandedIds.has(group.studentId);
+                  const gradeCount = group.grades.length;
 
                   return (
-                    <tr
-                      key={grade.id}
-                      className={passed ? "grade-row-pass" : "grade-row-fail"}
-                    >
-                      <td>
-                        {student ? `${student.firstName} ${student.lastName}` : "—"}
-                      </td>
-                      <td>{subject?.name ?? "—"}</td>
-                      <td>
-                        <span className="tag-badge">{grade.church}</span>
-                      </td>
-                      <td>{teacher ? teacherLabel(teacher) : "Sin asignar"}</td>
-                      <td className="grade-score">{grade.finalGrade}</td>
-                      <td>
-                        <span className={`grade-result${passed ? " is-pass" : " is-fail"}`}>
-                          {formatGradeStatus(grade.finalGrade)}
-                        </span>
-                      </td>
-                      <td>
-                        <button className="btn btn-secondary btn-sm" onClick={() => startEdit(grade)}>
-                          Editar
-                        </button>
-                      </td>
-                    </tr>
+                    <Fragment key={group.studentId}>
+                      <tr className={expanded ? "student-row is-expanded" : "student-row"}>
+                        <td>
+                          <button
+                            type="button"
+                            className="row-expand-btn"
+                            aria-expanded={expanded}
+                            aria-label={expanded ? "Ocultar notas" : "Ver notas"}
+                            onClick={() => toggleExpand(group.studentId)}
+                          >
+                            <ExpandRowIcon expanded={expanded} />
+                          </button>
+                        </td>
+                        <td>
+                          {student
+                            ? `${student.firstName} ${student.lastName}`
+                            : "—"}
+                        </td>
+                        <td>{student?.ci ?? "—"}</td>
+                        <td>
+                          {gradeCount} {gradeCount === 1 ? "nota" : "notas"}
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr className="student-expand-row">
+                          <td colSpan={4}>
+                            <StudentGradesExpand
+                              grades={group.grades}
+                              student={student}
+                              subjects={subjects ?? []}
+                              teachers={teacherList}
+                              onEdit={startEdit}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

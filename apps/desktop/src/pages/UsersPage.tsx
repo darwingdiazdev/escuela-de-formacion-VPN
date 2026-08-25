@@ -2,6 +2,7 @@ import type { PublicUser } from "@gestion-notas/application";
 import type { UserRole } from "@gestion-notas/domain";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FiltersPanel } from "../components/FiltersPanel";
+import { EditIcon, IconButton } from "../components/IconButton";
 import { Modal } from "../components/Modal";
 import { UserFormFields } from "../components/UserFormFields";
 import { ErrorBanner, LoadingState, useAsync } from "../hooks";
@@ -212,12 +213,9 @@ export function UsersPage() {
                           </td>
                           <td>
                             <div className="table-actions">
-                              <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => startEdit(user)}
-                              >
-                                Editar
-                              </button>
+                              <IconButton label="Editar" onClick={() => startEdit(user)}>
+                                <EditIcon />
+                              </IconButton>
                             </div>
                           </td>
                         </tr>
