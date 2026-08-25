@@ -16,6 +16,7 @@ import {
   nextTopicLabel,
   normalizeTeacherId,
   offeringsToPayload,
+  formatNivelLabel,
   PENSUM_OPTIONS,
   removeSubjectTopic,
   setOfferingTeacher,
@@ -287,7 +288,7 @@ export function SubjectsPage() {
                 />
               </label>
               <label>
-                Pensum
+                Nivel
                 <select
                   required
                   value={form.pensum}
@@ -295,7 +296,7 @@ export function SubjectsPage() {
                 >
                   {PENSUM_OPTIONS.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {formatNivelLabel(option)}
                     </option>
                   ))}
                 </select>
@@ -493,7 +494,7 @@ export function SubjectsPage() {
                   <th>Nombre</th>
                   <th>Estado</th>
                   <th>Iglesias</th>
-                  <th>Pensum</th>
+                  <th>Nivel</th>
                   <th>Temas</th>
                   <th>Valor</th>
                   <th>Profesores</th>
@@ -528,7 +529,7 @@ export function SubjectsPage() {
                         )}
                       </td>
                       <td>
-                        <span className="badge">{subject.pensum}</span>
+                        <span className="badge">{formatNivelLabel(subject.pensum)}</span>
                       </td>
                       <td>
                         {(subject.topics ?? []).length > 0 ? (

@@ -4,6 +4,10 @@ export const PENSUM_OPTIONS = ["Pensum 2", "Pensum 3"] as const;
 
 export type PensumOption = (typeof PENSUM_OPTIONS)[number];
 
+export function formatNivelLabel(pensum: string): string {
+  return pensum.replace(/^Pensum\b/i, "Nivel");
+}
+
 export const CHURCH_OPTIONS = CHURCH_LOCATIONS;
 
 export const DEFAULT_SUBJECT_PRICE_USD = 1;
