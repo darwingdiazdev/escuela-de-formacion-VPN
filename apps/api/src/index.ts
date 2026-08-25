@@ -26,11 +26,6 @@ app.use(express.json({ limit: "2mb" }));
 
 type AuthedRequest = express.Request & { user?: PublicUser };
 
-function toPublicUser<T extends { passwordHash?: string }>(user: T): Omit<T, "passwordHash"> {
-  const { passwordHash: _passwordHash, ...publicUser } = user;
-  return publicUser;
-}
-
 function signToken(user: PublicUser): string {
   const payload = Buffer.from(
     JSON.stringify({
@@ -92,6 +87,14 @@ function requireAuth(req: AuthedRequest, res: express.Response, next: express.Ne
   }
 
   req.user = user;
+  next();
+}
+
+function requireAdmin(req: AuthedRequest, res: express.Response, next: express.NextFunction) {
+  if (req.user?.role !== "admin") {
+    res.status(403).json({ error: "No tiene permisos para administrar usuarios." });
+    return;
+  }
   next();
 }
 
@@ -159,27 +162,29 @@ async function start() {
   app.get(
     "/users",
     requireAuth,
+    requireAdmin,
     asyncHandler(async (_req, res) => {
-      const users = await service.listUsers();
-      res.json(users.map((user) => toPublicUser(user)));
+      res.json(await service.listUsers());
     }),
   );
 
   app.post(
     "/users",
     requireAuth,
+    requireAdmin,
     asyncHandler(async (req, res) => {
       const user = await service.createUser(req.body);
-      res.status(201).json(toPublicUser(user));
+      res.status(201).json(user);
     }),
   );
 
   app.patch(
     "/users/:id",
     requireAuth,
+    requireAdmin,
     asyncHandler(async (req, res) => {
       const user = await service.updateUser(paramId(req), req.body);
-      res.json(toPublicUser(user));
+      res.json(user);
     }),
   );
 

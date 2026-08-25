@@ -40,6 +40,26 @@ export function hashPassword(password: string): string {
 
 export type PublicUser = Omit<User, "passwordHash">;
 
+export type CreateUserPayload = Omit<CreateUserInput, "passwordHash"> & { password: string };
+export type UpdateUserPayload = UpdateUserInput & { password?: string };
+
+const MIN_PASSWORD_LENGTH = 6;
+
+function toPublicUser(user: User): PublicUser {
+  const { passwordHash: _passwordHash, ...publicUser } = user;
+  return publicUser;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim();
+}
+
+function assertPassword(password: string): void {
+  if (password.trim().length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+  }
+}
+
 export class ApplicationService {
   private users = new UserRepository();
   private students = new StudentRepository();
@@ -56,12 +76,13 @@ export class ApplicationService {
 
   // --- Usuarios ---
 
-  async listUsers(): Promise<User[]> {
-    return this.users.findAll();
+  async listUsers(): Promise<PublicUser[]> {
+    const users = await this.users.findAll();
+    return users.map(toPublicUser);
   }
 
   async authenticateUser(email: string, password: string): Promise<PublicUser> {
-    const user = await this.users.findByEmail(email);
+    const user = await this.users.findByEmail(normalizeEmail(email));
     if (!user || !user.isActive) {
       throw new Error("Credenciales inválidas.");
     }
@@ -69,21 +90,24 @@ export class ApplicationService {
       throw new Error("Credenciales inválidas.");
     }
 
-    const { passwordHash: _, ...publicUser } = user;
-    return publicUser;
+    return toPublicUser(user);
   }
 
-  async createUser(input: Omit<CreateUserInput, "passwordHash"> & { password: string }): Promise<User> {
-    const existing = await this.users.findByEmail(input.email);
+  async createUser(input: CreateUserPayload): Promise<PublicUser> {
+    const email = normalizeEmail(input.email);
+    if (!email) throw new Error("El correo es obligatorio.");
+    assertPassword(input.password);
+
+    const existing = await this.users.findByEmail(email);
     if (existing) {
       throw new Error("Ya existe un usuario con ese correo.");
     }
 
     const user = await this.users.create({
-      email: input.email,
+      email,
       passwordHash: hashPassword(input.password),
-      firstName: input.firstName,
-      lastName: input.lastName,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
       role: input.role,
     });
 
@@ -95,21 +119,63 @@ export class ApplicationService {
       }),
     );
 
-    return user;
+    return toPublicUser(user);
   }
 
-  async updateUser(id: string, input: UpdateUserInput): Promise<User> {
-    const updated = await this.users.update(id, input);
+  async updateUser(id: string, input: UpdateUserPayload): Promise<PublicUser> {
+    const current = await this.users.findById(id);
+    if (!current) throw new Error("Usuario no encontrado.");
+
+    const email = input.email !== undefined ? normalizeEmail(input.email) : undefined;
+    if (email !== undefined && !email) {
+      throw new Error("El correo es obligatorio.");
+    }
+    if (email && email !== current.email) {
+      const existing = await this.users.findByEmail(email);
+      if (existing && existing.id !== id) {
+        throw new Error("Ya existe un usuario con ese correo.");
+      }
+    }
+
+    const wouldLoseAdminAccess =
+      current.role === "admin" &&
+      current.isActive &&
+      (input.isActive === false || (input.role !== undefined && input.role !== "admin"));
+
+    if (wouldLoseAdminAccess) {
+      const users = await this.users.findAll();
+      const otherActiveAdmins = users.filter(
+        (user) => user.id !== id && user.role === "admin" && user.isActive,
+      );
+      if (otherActiveAdmins.length === 0) {
+        throw new Error("Debe existir al menos un administrador activo.");
+      }
+    }
+
+    const patch: UpdateUserInput & { passwordHash?: string } = {};
+    if (email !== undefined) patch.email = email;
+    if (input.firstName !== undefined) patch.firstName = input.firstName.trim();
+    if (input.lastName !== undefined) patch.lastName = input.lastName.trim();
+    if (input.role !== undefined) patch.role = input.role;
+    if (input.isActive !== undefined) patch.isActive = input.isActive;
+
+    if (input.password !== undefined && input.password.trim() !== "") {
+      assertPassword(input.password);
+      patch.passwordHash = hashPassword(input.password);
+    }
+
+    const updated = await this.users.update(id, patch);
     if (!updated) throw new Error("Usuario no encontrado.");
 
+    const { password: _password, ...safeChanges } = input;
     await this.emit(
       createDomainEvent(EventTypes.USER_UPDATED, id, "User", {
         userId: id,
-        changes: input,
+        changes: safeChanges,
       }),
     );
 
-    return updated;
+    return toPublicUser(updated);
   }
 
   // --- Estudiantes ---

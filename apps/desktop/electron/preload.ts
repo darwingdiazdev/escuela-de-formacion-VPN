@@ -9,19 +9,15 @@ import type {
   UpdateStudentInput,
   UpdateSubjectInput,
   UpdateTeacherInput,
-  UpdateUserInput,
-  UserRole,
 } from "@gestion-notas/domain";
-import type { PublicUser } from "@gestion-notas/application";
+import type {
+  CreateUserPayload,
+  PublicUser,
+  UpdateUserPayload,
+} from "@gestion-notas/application";
 import { contextBridge, ipcRenderer } from "electron";
 
-export interface CreateUserPayload {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-}
+export type { CreateUserPayload, UpdateUserPayload };
 
 const api = {
   auth: {
@@ -29,9 +25,11 @@ const api = {
       ipcRenderer.invoke("auth:login", email, password) as Promise<PublicUser>,
   },
   users: {
-    list: () => ipcRenderer.invoke("users:list"),
-    create: (input: CreateUserPayload) => ipcRenderer.invoke("users:create", input),
-    update: (id: string, input: UpdateUserInput) => ipcRenderer.invoke("users:update", id, input),
+    list: () => ipcRenderer.invoke("users:list") as Promise<PublicUser[]>,
+    create: (input: CreateUserPayload) =>
+      ipcRenderer.invoke("users:create", input) as Promise<PublicUser>,
+    update: (id: string, input: UpdateUserPayload) =>
+      ipcRenderer.invoke("users:update", id, input) as Promise<PublicUser>,
   },
   students: {
     list: () => ipcRenderer.invoke("students:list"),

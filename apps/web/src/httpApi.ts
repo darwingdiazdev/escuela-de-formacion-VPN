@@ -1,4 +1,8 @@
-import type { PublicUser } from "@gestion-notas/application";
+import type {
+  CreateUserPayload,
+  PublicUser,
+  UpdateUserPayload,
+} from "@gestion-notas/application";
 import type {
   ChurchLocation,
   CreateGradeInput,
@@ -10,19 +14,9 @@ import type {
   UpdateStudentInput,
   UpdateSubjectInput,
   UpdateTeacherInput,
-  UpdateUserInput,
-  UserRole,
 } from "@gestion-notas/domain";
 
 const TOKEN_KEY = "gestion-notas-token";
-
-interface CreateUserPayload {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-}
 
 function apiBase(): string {
   const configured = import.meta.env.VITE_API_URL;
@@ -84,11 +78,11 @@ export function installHttpApi() {
       },
     },
     users: {
-      list: () => request("/users"),
+      list: () => request<PublicUser[]>("/users"),
       create: (input: CreateUserPayload) =>
-        request("/users", { method: "POST", body: JSON.stringify(input) }),
-      update: (id: string, input: UpdateUserInput) =>
-        request(`/users/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+        request<PublicUser>("/users", { method: "POST", body: JSON.stringify(input) }),
+      update: (id: string, input: UpdateUserPayload) =>
+        request<PublicUser>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
     },
     students: {
       list: () => request("/students"),
@@ -139,7 +133,7 @@ export function installHttpApi() {
     },
     export: {
       saveExcel: async (data: Uint8Array, defaultFileName: string) => {
-        const blob = new Blob([data], {
+        const blob = new Blob([data as BlobPart], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
         const url = URL.createObjectURL(blob);

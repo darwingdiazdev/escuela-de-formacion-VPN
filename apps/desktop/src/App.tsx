@@ -5,15 +5,18 @@ import { LoginPage } from "./pages/LoginPage";
 import { StudentsPage } from "./pages/StudentsPage";
 import { SubjectsPage } from "./pages/SubjectsPage";
 import { TeachersPage } from "./pages/TeachersPage";
+import { UsersPage } from "./pages/UsersPage";
 import { useAuth } from "./useAuth";
+import { USER_ROLE_LABELS } from "./userForm";
 
-type Section = "students" | "teachers" | "subjects" | "grades";
+type Section = "students" | "teachers" | "subjects" | "grades" | "users";
 
-const sections: { id: Section; label: string }[] = [
+const sections: { id: Section; label: string; adminOnly?: boolean }[] = [
   { id: "students", label: "Estudiantes" },
   { id: "subjects", label: "Materias" },
   { id: "teachers", label: "Profesores" },
   { id: "grades", label: "Notas" },
+  { id: "users", label: "Usuarios", adminOnly: true },
 ];
 
 export default function App() {
@@ -41,7 +44,9 @@ export default function App() {
     return <LoginPage onLogin={login} />;
   }
 
-  const visibleSections = sections;
+  const visibleSections = sections.filter(
+    (item) => !item.adminOnly || user.role === "admin",
+  );
   const activeSection = visibleSections.some((item) => item.id === section)
     ? section
     : visibleSections[0]?.id ?? "students";
@@ -106,7 +111,7 @@ export default function App() {
             <span>
               {user.firstName} {user.lastName}
             </span>
-            <span className="badge">{user.role}</span>
+            <span className="badge">{USER_ROLE_LABELS[user.role]}</span>
           </div>
           <button type="button" className="nav-btn logout-btn" onClick={logout}>
             Cerrar sesión
@@ -119,6 +124,7 @@ export default function App() {
         {activeSection === "teachers" && <TeachersPage />}
         {activeSection === "subjects" && <SubjectsPage />}
         {activeSection === "grades" && <GradesPage />}
+        {activeSection === "users" && <UsersPage />}
       </main>
     </div>
   );

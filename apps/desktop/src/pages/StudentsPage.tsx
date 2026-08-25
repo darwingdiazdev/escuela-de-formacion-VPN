@@ -28,7 +28,7 @@ export function StudentsPage() {
     () => window.api.grades.listAll(),
     [],
   );
-  const { data: teachers } = useAsync(() => window.api.teachers.list(), []);
+  const { data: teachers } = useAsync<Teacher[]>(() => window.api.teachers.list(), []);
   const [formError, setFormError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Student | null>(null);
   const [detailStudentId, setDetailStudentId] = useState<string | null>(null);

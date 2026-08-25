@@ -120,7 +120,7 @@ export class UserRepository {
     return toEntity<User>(doc);
   }
 
-  async update(id: string, input: UpdateUserInput): Promise<User | null> {
+  async update(id: string, input: UpdateUserInput & { passwordHash?: string }): Promise<User | null> {
     const database = getDatabase();
     const result = await database.collection("users").findOneAndUpdate(
       { _id: new ObjectId(id) },
