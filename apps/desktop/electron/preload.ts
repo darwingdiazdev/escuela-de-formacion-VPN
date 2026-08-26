@@ -1,9 +1,11 @@
 import type {
+  CreateFinanceOtherIncomeInput,
+  CreateFinanceOutflowInput,
+  CreateFinancePaymentInput,
   CreateGradeInput,
   CreateStudentInput,
   CreateSubjectInput,
   CreateTeacherInput,
-  PaymentStatus,
   ChurchLocation,
   UpdateGradeInput,
   UpdateStudentInput,
@@ -37,19 +39,6 @@ const api = {
     update: (id: string, input: UpdateStudentInput) =>
       ipcRenderer.invoke("students:update", id, input),
     delete: (id: string) => ipcRenderer.invoke("students:delete", id),
-    setEnrollmentPayment: (
-      studentId: string,
-      subjectId: string,
-      church: ChurchLocation,
-      paymentStatus: PaymentStatus,
-    ) =>
-      ipcRenderer.invoke(
-        "students:setEnrollmentPayment",
-        studentId,
-        subjectId,
-        church,
-        paymentStatus,
-      ),
     retakeEnrollment: (studentId: string, subjectId: string, church: ChurchLocation) =>
       ipcRenderer.invoke("students:retakeEnrollment", studentId, subjectId, church),
   },
@@ -73,6 +62,21 @@ const api = {
     create: (input: CreateGradeInput) => ipcRenderer.invoke("grades:create", input),
     update: (id: string, input: UpdateGradeInput) =>
       ipcRenderer.invoke("grades:update", id, input),
+  },
+  payments: {
+    list: () => ipcRenderer.invoke("payments:list"),
+    create: (input: CreateFinancePaymentInput) => ipcRenderer.invoke("payments:create", input),
+    void: (id: string) => ipcRenderer.invoke("payments:void", id),
+  },
+  outflows: {
+    list: () => ipcRenderer.invoke("outflows:list"),
+    create: (input: CreateFinanceOutflowInput) => ipcRenderer.invoke("outflows:create", input),
+    void: (id: string) => ipcRenderer.invoke("outflows:void", id),
+  },
+  incomes: {
+    list: () => ipcRenderer.invoke("incomes:list"),
+    create: (input: CreateFinanceOtherIncomeInput) => ipcRenderer.invoke("incomes:create", input),
+    void: (id: string) => ipcRenderer.invoke("incomes:void", id),
   },
   export: {
     saveExcel: (data: Uint8Array, defaultFileName: string) =>

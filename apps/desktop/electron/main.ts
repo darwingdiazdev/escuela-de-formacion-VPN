@@ -60,12 +60,21 @@ function registerIpcHandlers() {
   ipcMain.handle("students:create", (_e, input) => service.createStudent(input));
   ipcMain.handle("students:update", (_e, id, input) => service.updateStudent(id, input));
   ipcMain.handle("students:delete", (_e, id) => service.deleteStudent(id));
-  ipcMain.handle("students:setEnrollmentPayment", (_e, studentId, subjectId, church, paymentStatus) =>
-    service.setEnrollmentPayment(studentId, subjectId, church, paymentStatus),
-  );
   ipcMain.handle("students:retakeEnrollment", (_e, studentId, subjectId, church) =>
     service.retakeEnrollment(studentId, subjectId, church),
   );
+
+  ipcMain.handle("payments:list", () => service.listPayments());
+  ipcMain.handle("payments:create", (_e, input) => service.registerPayment(input));
+  ipcMain.handle("payments:void", (_e, id) => service.voidPayment(id));
+
+  ipcMain.handle("outflows:list", () => service.listOutflows());
+  ipcMain.handle("outflows:create", (_e, input) => service.registerOutflow(input));
+  ipcMain.handle("outflows:void", (_e, id) => service.voidOutflow(id));
+
+  ipcMain.handle("incomes:list", () => service.listOtherIncomes());
+  ipcMain.handle("incomes:create", (_e, input) => service.registerOtherIncome(input));
+  ipcMain.handle("incomes:void", (_e, id) => service.voidOtherIncome(id));
 
   ipcMain.handle("teachers:list", () => service.listTeachers());
   ipcMain.handle("teachers:create", (_e, input) => service.createTeacher(input));

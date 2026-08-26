@@ -32,6 +32,10 @@ export interface SubjectTopic {
 
 export type PaymentStatus = "paid" | "debt";
 
+export type PaymentMethod = "cash" | "mobile";
+
+export const PAYMENT_METHODS: PaymentMethod[] = ["cash", "mobile"];
+
 export interface StudentSubjectEnrollment {
   subjectId: string;
   church: ChurchLocation;
@@ -103,6 +107,38 @@ export interface Grade extends BaseEntity {
   isCurrent: boolean;
 }
 
+export interface FinancePayment extends BaseEntity {
+  studentId: string;
+  subjectId: string;
+  church: ChurchLocation;
+  paymentDate: Date;
+  paymentMethod: PaymentMethod;
+  usdRate: number;
+  amountUsd: number;
+  amountLocal: number;
+  reference?: string;
+}
+
+export interface FinanceOutflow extends BaseEntity {
+  outflowDate: Date;
+  reason: string;
+  paymentMethod: PaymentMethod;
+  usdRate: number;
+  amountUsd: number;
+  amountLocal: number;
+  reference?: string;
+}
+
+export interface FinanceOtherIncome extends BaseEntity {
+  incomeDate: Date;
+  reason: string;
+  paymentMethod: PaymentMethod;
+  usdRate: number;
+  amountUsd: number;
+  amountLocal: number;
+  reference?: string;
+}
+
 export type CreateUserInput = Pick<User, "email" | "passwordHash" | "firstName" | "lastName" | "role">;
 export type UpdateUserInput = Partial<Pick<User, "email" | "firstName" | "lastName" | "role" | "isActive">>;
 
@@ -128,6 +164,34 @@ export type CreateGradeInput = Omit<
   isCurrent?: boolean;
 };
 export type UpdateGradeInput = Partial<CreateGradeInput>;
+
+export type CreateFinancePaymentInput = {
+  studentId: string;
+  subjectId: string;
+  church: ChurchLocation;
+  paymentDate: Date;
+  paymentMethod: PaymentMethod;
+  usdRate: number;
+  reference?: string;
+};
+
+export type CreateFinanceOutflowInput = {
+  outflowDate: Date;
+  reason: string;
+  paymentMethod: PaymentMethod;
+  usdRate: number;
+  amountUsd: number;
+  reference?: string;
+};
+
+export type CreateFinanceOtherIncomeInput = {
+  incomeDate: Date;
+  reason: string;
+  paymentMethod: PaymentMethod;
+  usdRate: number;
+  amountUsd: number;
+  reference?: string;
+};
 
 export interface UserWithProfile extends User {
   student?: Student;

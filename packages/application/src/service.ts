@@ -2,14 +2,22 @@ import { createHash } from "node:crypto";
 import {
   createDomainEvent,
   EventTypes,
+  type CreateFinanceOtherIncomeInput,
+  type CreateFinanceOutflowInput,
+  type CreateFinancePaymentInput,
   type CreateGradeInput,
   type CreateStudentInput,
   type CreateSubjectInput,
   type CreateTeacherInput,
   type CreateUserInput,
+  type FinanceOtherIncome,
+  type FinanceOutflow,
+  type FinancePayment,
   type Grade,
   isPassingGrade,
   MAX_GRADE,
+  PAYMENT_METHODS,
+  type PaymentMethod,
   type PaymentStatus,
   type ChurchLocation,
   type StudentSubjectEnrollment,
@@ -27,6 +35,9 @@ import {
 import type { EventBus } from "@gestion-notas/events";
 import {
   saveEvent,
+  FinanceOtherIncomeRepository,
+  FinanceOutflowRepository,
+  FinancePaymentRepository,
   GradeRepository,
   StudentRepository,
   SubjectRepository,
@@ -60,12 +71,27 @@ function assertPassword(password: string): void {
   }
 }
 
+function parsePaymentDate(value: Date | string): Date {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Ingrese una fecha válida.");
+  }
+  return date;
+}
+
+function isPaymentMethod(value: string): value is PaymentMethod {
+  return (PAYMENT_METHODS as string[]).includes(value);
+}
+
 export class ApplicationService {
   private users = new UserRepository();
   private students = new StudentRepository();
   private teachers = new TeacherRepository();
   private subjects = new SubjectRepository();
   private grades = new GradeRepository();
+  private payments = new FinancePaymentRepository();
+  private outflows = new FinanceOutflowRepository();
+  private incomes = new FinanceOtherIncomeRepository();
 
   constructor(private eventBus: EventBus) {}
 
@@ -247,11 +273,12 @@ export class ApplicationService {
     if (!student) throw new Error("Estudiante no encontrado.");
 
     await this.grades.deleteByStudentId(id);
+    await this.payments.deleteByStudentId(id);
     const deleted = await this.students.delete(id);
     if (!deleted) throw new Error("Estudiante no encontrado.");
   }
 
-  async setEnrollmentPayment(
+  private async applyEnrollmentPayment(
     studentId: string,
     subjectId: string,
     church: ChurchLocation,
@@ -323,6 +350,245 @@ export class ApplicationService {
     if (!updated) throw new Error("Estudiante no encontrado.");
 
     return updated;
+  }
+
+  // --- Finanzas ---
+
+  async listPayments(): Promise<FinancePayment[]> {
+    return this.payments.findAll();
+  }
+
+  async registerPayment(input: CreateFinancePaymentInput): Promise<FinancePayment> {
+    const studentId = String(input.studentId ?? "");
+    const subjectId = String(input.subjectId ?? "");
+    const church = input.church;
+    const paymentMethod = input.paymentMethod;
+    const usdRate = Number(input.usdRate);
+    const paymentDate = parsePaymentDate(input.paymentDate);
+
+    if (!studentId) throw new Error("Seleccione un estudiante.");
+    if (!subjectId) throw new Error("Seleccione una materia.");
+    if (!church) throw new Error("Seleccione la iglesia de la inscripción.");
+    if (!isPaymentMethod(paymentMethod)) {
+      throw new Error("Seleccione un modo de pago válido.");
+    }
+    if (!Number.isFinite(usdRate) || usdRate <= 0) {
+      throw new Error("Ingrese el valor del dólar al día del ingreso.");
+    }
+
+    const student = await this.students.findById(studentId);
+    if (!student) throw new Error("Estudiante no encontrado.");
+
+    const enrollment = (student.enrollments ?? []).find(
+      (item) => String(item.subjectId) === subjectId && item.church === church,
+    );
+    if (!enrollment) {
+      throw new Error("El estudiante no está inscrito en esa materia.");
+    }
+    if (enrollment.paymentStatus === "paid") {
+      throw new Error("Esa materia ya tiene un ingreso. Registre el ingreso solo para deudas pendientes.");
+    }
+
+    const subject = await this.subjects.findById(subjectId);
+    if (!subject) throw new Error("Materia no encontrada.");
+
+    const amountUsd = Number(subject.priceUsd) || 0;
+    const amountLocal = Math.round(amountUsd * usdRate * 100) / 100;
+    const reference =
+      paymentMethod === "mobile" && typeof input.reference === "string"
+        ? input.reference.trim()
+        : "";
+
+    const payment = await this.payments.create({
+      studentId,
+      subjectId,
+      church,
+      paymentDate,
+      paymentMethod,
+      usdRate,
+      amountUsd,
+      amountLocal,
+      ...(reference ? { reference } : {}),
+    });
+
+    await this.applyEnrollmentPayment(studentId, subjectId, church, "paid");
+
+    await this.emit(
+      createDomainEvent(EventTypes.PAYMENT_REGISTERED, payment.id, "Payment", {
+        paymentId: payment.id,
+        studentId,
+        subjectId,
+        church,
+        amountUsd,
+        amountLocal,
+      }),
+    );
+
+    return payment;
+  }
+
+  async voidPayment(id: string): Promise<void> {
+    const payment = await this.payments.findById(id);
+    if (!payment) throw new Error("Ingreso no encontrado.");
+
+    const deleted = await this.payments.delete(id);
+    if (!deleted) throw new Error("Ingreso no encontrado.");
+
+    const student = await this.students.findById(payment.studentId);
+    if (student) {
+      const stillEnrolled = (student.enrollments ?? []).some(
+        (enrollment) =>
+          String(enrollment.subjectId) === String(payment.subjectId) &&
+          enrollment.church === payment.church,
+      );
+      if (stillEnrolled) {
+        await this.applyEnrollmentPayment(
+          payment.studentId,
+          payment.subjectId,
+          payment.church,
+          "debt",
+        );
+      }
+    }
+
+    await this.emit(
+      createDomainEvent(EventTypes.PAYMENT_VOIDED, payment.id, "Payment", {
+        paymentId: payment.id,
+        studentId: payment.studentId,
+        subjectId: payment.subjectId,
+        church: payment.church,
+      }),
+    );
+  }
+
+  async listOutflows(): Promise<FinanceOutflow[]> {
+    return this.outflows.findAll();
+  }
+
+  async registerOutflow(input: CreateFinanceOutflowInput): Promise<FinanceOutflow> {
+    const paymentMethod = input.paymentMethod;
+    const usdRate = Number(input.usdRate);
+    const amountUsd = Number(input.amountUsd);
+    const outflowDate = parsePaymentDate(input.outflowDate);
+    const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+
+    if (!reason) throw new Error("Ingrese el motivo de la salida.");
+    if (!isPaymentMethod(paymentMethod)) {
+      throw new Error("Seleccione un modo de pago válido.");
+    }
+    if (!Number.isFinite(usdRate) || usdRate <= 0) {
+      throw new Error("Ingrese el valor del dólar al día de la salida.");
+    }
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+      throw new Error("Ingrese el monto de la salida en dólares.");
+    }
+
+    const amountLocal = Math.round(amountUsd * usdRate * 100) / 100;
+    const reference =
+      paymentMethod === "mobile" && typeof input.reference === "string"
+        ? input.reference.trim()
+        : "";
+
+    const outflow = await this.outflows.create({
+      outflowDate,
+      reason,
+      paymentMethod,
+      usdRate,
+      amountUsd,
+      amountLocal,
+      ...(reference ? { reference } : {}),
+    });
+
+    await this.emit(
+      createDomainEvent(EventTypes.OUTFLOW_REGISTERED, outflow.id, "Outflow", {
+        outflowId: outflow.id,
+        reason,
+        amountUsd,
+        amountLocal,
+      }),
+    );
+
+    return outflow;
+  }
+
+  async voidOutflow(id: string): Promise<void> {
+    const outflow = await this.outflows.findById(id);
+    if (!outflow) throw new Error("Salida no encontrada.");
+
+    const deleted = await this.outflows.delete(id);
+    if (!deleted) throw new Error("Salida no encontrada.");
+
+    await this.emit(
+      createDomainEvent(EventTypes.OUTFLOW_VOIDED, outflow.id, "Outflow", {
+        outflowId: outflow.id,
+        reason: outflow.reason,
+      }),
+    );
+  }
+
+  async listOtherIncomes(): Promise<FinanceOtherIncome[]> {
+    return this.incomes.findAll();
+  }
+
+  async registerOtherIncome(input: CreateFinanceOtherIncomeInput): Promise<FinanceOtherIncome> {
+    const paymentMethod = input.paymentMethod;
+    const usdRate = Number(input.usdRate);
+    const amountUsd = Number(input.amountUsd);
+    const incomeDate = parsePaymentDate(input.incomeDate);
+    const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+
+    if (!reason) throw new Error("Ingrese el motivo del ingreso.");
+    if (!isPaymentMethod(paymentMethod)) {
+      throw new Error("Seleccione un modo de pago válido.");
+    }
+    if (!Number.isFinite(usdRate) || usdRate <= 0) {
+      throw new Error("Ingrese el valor del dólar al día del ingreso.");
+    }
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+      throw new Error("Ingrese el monto del ingreso en dólares.");
+    }
+
+    const amountLocal = Math.round(amountUsd * usdRate * 100) / 100;
+    const reference =
+      paymentMethod === "mobile" && typeof input.reference === "string"
+        ? input.reference.trim()
+        : "";
+
+    const income = await this.incomes.create({
+      incomeDate,
+      reason,
+      paymentMethod,
+      usdRate,
+      amountUsd,
+      amountLocal,
+      ...(reference ? { reference } : {}),
+    });
+
+    await this.emit(
+      createDomainEvent(EventTypes.INCOME_REGISTERED, income.id, "Income", {
+        incomeId: income.id,
+        reason,
+        amountUsd,
+        amountLocal,
+      }),
+    );
+
+    return income;
+  }
+
+  async voidOtherIncome(id: string): Promise<void> {
+    const income = await this.incomes.findById(id);
+    if (!income) throw new Error("Ingreso no encontrado.");
+
+    const deleted = await this.incomes.delete(id);
+    if (!deleted) throw new Error("Ingreso no encontrado.");
+
+    await this.emit(
+      createDomainEvent(EventTypes.INCOME_VOIDED, income.id, "Income", {
+        incomeId: income.id,
+        reason: income.reason,
+      }),
+    );
   }
 
   // --- Profesores ---
@@ -497,6 +763,7 @@ export class ApplicationService {
     }
 
     await this.grades.deleteBySubjectId(id);
+    await this.payments.deleteBySubjectId(id);
     const deleted = await this.subjects.delete(id);
     if (!deleted) throw new Error("Materia no encontrada.");
   }
@@ -617,7 +884,7 @@ export class ApplicationService {
       prepared.push({
         subjectId: enrollment.subjectId,
         church: enrollment.church,
-        paymentStatus: enrollment.paymentStatus ?? existing?.paymentStatus ?? "debt",
+        paymentStatus: existing?.paymentStatus ?? "debt",
         ...(teacherId ? { teacherId } : {}),
       });
     }

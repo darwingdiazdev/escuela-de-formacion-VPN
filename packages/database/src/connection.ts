@@ -326,4 +326,9 @@ export async function ensureIndexes(database: Db): Promise<void> {
 
   await database.collection("events").createIndex({ occurredAt: -1 });
   await database.collection("events").createIndex({ aggregateId: 1 });
+
+  await database.collection("payments").createIndex({ paymentDate: -1 });
+  await database.collection("payments").createIndex({ studentId: 1, subjectId: 1, church: 1 });
+  await database.collection("outflows").createIndex({ outflowDate: -1 });
+  await database.collection("incomes").createIndex({ incomeDate: -1 });
 }

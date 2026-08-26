@@ -5,11 +5,13 @@ import type {
 } from "@gestion-notas/application";
 import type {
   ChurchLocation,
+  CreateFinanceOtherIncomeInput,
+  CreateFinanceOutflowInput,
+  CreateFinancePaymentInput,
   CreateGradeInput,
   CreateStudentInput,
   CreateSubjectInput,
   CreateTeacherInput,
-  PaymentStatus,
   UpdateGradeInput,
   UpdateStudentInput,
   UpdateSubjectInput,
@@ -91,16 +93,6 @@ export function installHttpApi() {
       update: (id: string, input: UpdateStudentInput) =>
         request(`/students/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
       delete: (id: string) => request(`/students/${id}`, { method: "DELETE" }),
-      setEnrollmentPayment: (
-        studentId: string,
-        subjectId: string,
-        church: ChurchLocation,
-        paymentStatus: PaymentStatus,
-      ) =>
-        request(`/students/${studentId}/enrollment-payment`, {
-          method: "POST",
-          body: JSON.stringify({ subjectId, church, paymentStatus }),
-        }),
       retakeEnrollment: (studentId: string, subjectId: string, church: ChurchLocation) =>
         request(`/students/${studentId}/retake-enrollment`, {
           method: "POST",
@@ -130,6 +122,24 @@ export function installHttpApi() {
         request("/grades", { method: "POST", body: JSON.stringify(input) }),
       update: (id: string, input: UpdateGradeInput) =>
         request(`/grades/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+    },
+    payments: {
+      list: () => request("/payments"),
+      create: (input: CreateFinancePaymentInput) =>
+        request("/payments", { method: "POST", body: JSON.stringify(input) }),
+      void: (id: string) => request(`/payments/${id}`, { method: "DELETE" }),
+    },
+    outflows: {
+      list: () => request("/outflows"),
+      create: (input: CreateFinanceOutflowInput) =>
+        request("/outflows", { method: "POST", body: JSON.stringify(input) }),
+      void: (id: string) => request(`/outflows/${id}`, { method: "DELETE" }),
+    },
+    incomes: {
+      list: () => request("/incomes"),
+      create: (input: CreateFinanceOtherIncomeInput) =>
+        request("/incomes", { method: "POST", body: JSON.stringify(input) }),
+      void: (id: string) => request(`/incomes/${id}`, { method: "DELETE" }),
     },
     export: {
       saveExcel: async (data: Uint8Array, defaultFileName: string) => {

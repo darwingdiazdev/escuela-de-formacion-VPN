@@ -251,6 +251,10 @@ async function ensureIndexes(database) {
   await database.collection("grades").createIndex({ studentId: 1, subjectId: 1, church: 1 }, { unique: true, partialFilterExpression: { isCurrent: true } });
   await database.collection("events").createIndex({ occurredAt: -1 });
   await database.collection("events").createIndex({ aggregateId: 1 });
+  await database.collection("payments").createIndex({ paymentDate: -1 });
+  await database.collection("payments").createIndex({ studentId: 1, subjectId: 1, church: 1 });
+  await database.collection("outflows").createIndex({ outflowDate: -1 });
+  await database.collection("incomes").createIndex({ incomeDate: -1 });
 }
 async function saveEvent(event) {
   const database = getDatabase();
@@ -594,6 +598,124 @@ class GradeRepository {
     return result.deletedCount;
   }
 }
+class FinancePaymentRepository {
+  async create(input) {
+    const database = getDatabase();
+    const timestamp = now();
+    const doc = {
+      studentId: String(input.studentId),
+      subjectId: String(input.subjectId),
+      church: input.church,
+      paymentDate: input.paymentDate,
+      paymentMethod: input.paymentMethod,
+      usdRate: input.usdRate,
+      amountUsd: input.amountUsd,
+      amountLocal: input.amountLocal,
+      ...input.reference ? { reference: input.reference } : {},
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    const result = await database.collection("payments").insertOne(doc);
+    return toEntity({ _id: result.insertedId, ...doc });
+  }
+  async findAll() {
+    const database = getDatabase();
+    const docs = await database.collection("payments").find().sort({ paymentDate: -1, createdAt: -1 }).toArray();
+    return toEntityList(docs);
+  }
+  async findById(id) {
+    const database = getDatabase();
+    const doc = await database.collection("payments").findOne({ _id: new ObjectId(id) });
+    return toEntity(doc);
+  }
+  async delete(id) {
+    const database = getDatabase();
+    const result = await database.collection("payments").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+  async deleteByStudentId(studentId) {
+    const database = getDatabase();
+    const result = await database.collection("payments").deleteMany({
+      studentId: { $in: referenceIdVariants(studentId) }
+    });
+    return result.deletedCount;
+  }
+  async deleteBySubjectId(subjectId) {
+    const database = getDatabase();
+    const result = await database.collection("payments").deleteMany({
+      subjectId: { $in: referenceIdVariants(subjectId) }
+    });
+    return result.deletedCount;
+  }
+}
+class FinanceOutflowRepository {
+  async create(input) {
+    const database = getDatabase();
+    const timestamp = now();
+    const doc = {
+      outflowDate: input.outflowDate,
+      reason: input.reason,
+      paymentMethod: input.paymentMethod,
+      usdRate: input.usdRate,
+      amountUsd: input.amountUsd,
+      amountLocal: input.amountLocal,
+      ...input.reference ? { reference: input.reference } : {},
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    const result = await database.collection("outflows").insertOne(doc);
+    return toEntity({ _id: result.insertedId, ...doc });
+  }
+  async findAll() {
+    const database = getDatabase();
+    const docs = await database.collection("outflows").find().sort({ outflowDate: -1, createdAt: -1 }).toArray();
+    return toEntityList(docs);
+  }
+  async findById(id) {
+    const database = getDatabase();
+    const doc = await database.collection("outflows").findOne({ _id: new ObjectId(id) });
+    return toEntity(doc);
+  }
+  async delete(id) {
+    const database = getDatabase();
+    const result = await database.collection("outflows").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+}
+class FinanceOtherIncomeRepository {
+  async create(input) {
+    const database = getDatabase();
+    const timestamp = now();
+    const doc = {
+      incomeDate: input.incomeDate,
+      reason: input.reason,
+      paymentMethod: input.paymentMethod,
+      usdRate: input.usdRate,
+      amountUsd: input.amountUsd,
+      amountLocal: input.amountLocal,
+      ...input.reference ? { reference: input.reference } : {},
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    const result = await database.collection("incomes").insertOne(doc);
+    return toEntity({ _id: result.insertedId, ...doc });
+  }
+  async findAll() {
+    const database = getDatabase();
+    const docs = await database.collection("incomes").find().sort({ incomeDate: -1, createdAt: -1 }).toArray();
+    return toEntityList(docs);
+  }
+  async findById(id) {
+    const database = getDatabase();
+    const doc = await database.collection("incomes").findOne({ _id: new ObjectId(id) });
+    return toEntity(doc);
+  }
+  async delete(id) {
+    const database = getDatabase();
+    const result = await database.collection("incomes").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+}
 class InMemoryEventBus {
   handlers = /* @__PURE__ */ new Map();
   subscribe(eventType, handler) {
@@ -636,7 +758,13 @@ function registerDefaultHandlers(subscribe) {
     "teacher.created",
     "teacher.updated",
     "subject.created",
-    "subject.updated"
+    "subject.updated",
+    "payment.registered",
+    "payment.voided",
+    "outflow.registered",
+    "outflow.voided",
+    "income.registered",
+    "income.voided"
   ];
   for (const eventType of allEventTypes) {
     subscribe(eventType, auditHandler);
@@ -647,6 +775,7 @@ const MAX_GRADE = 20;
 function isPassingGrade(finalGrade) {
   return finalGrade >= PASSING_GRADE;
 }
+const PAYMENT_METHODS = ["cash", "mobile"];
 const EventTypes = {
   USER_CREATED: "user.created",
   USER_UPDATED: "user.updated",
@@ -655,7 +784,13 @@ const EventTypes = {
   TEACHER_CREATED: "teacher.created",
   TEACHER_UPDATED: "teacher.updated",
   SUBJECT_CREATED: "subject.created",
-  SUBJECT_UPDATED: "subject.updated"
+  SUBJECT_UPDATED: "subject.updated",
+  PAYMENT_REGISTERED: "payment.registered",
+  PAYMENT_VOIDED: "payment.voided",
+  OUTFLOW_REGISTERED: "outflow.registered",
+  OUTFLOW_VOIDED: "outflow.voided",
+  INCOME_REGISTERED: "income.registered",
+  INCOME_VOIDED: "income.voided"
 };
 function generateEventId() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
@@ -691,6 +826,16 @@ function assertPassword(password) {
     throw new Error(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
   }
 }
+function parsePaymentDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Ingrese una fecha válida.");
+  }
+  return date;
+}
+function isPaymentMethod(value) {
+  return PAYMENT_METHODS.includes(value);
+}
 class ApplicationService {
   eventBus;
   users = new UserRepository();
@@ -698,6 +843,9 @@ class ApplicationService {
   teachers = new TeacherRepository();
   subjects = new SubjectRepository();
   grades = new GradeRepository();
+  payments = new FinancePaymentRepository();
+  outflows = new FinanceOutflowRepository();
+  incomes = new FinanceOtherIncomeRepository();
   constructor(eventBus) {
     this.eventBus = eventBus;
   }
@@ -841,11 +989,12 @@ class ApplicationService {
     if (!student)
       throw new Error("Estudiante no encontrado.");
     await this.grades.deleteByStudentId(id);
+    await this.payments.deleteByStudentId(id);
     const deleted = await this.students.delete(id);
     if (!deleted)
       throw new Error("Estudiante no encontrado.");
   }
-  async setEnrollmentPayment(studentId, subjectId, church, paymentStatus) {
+  async applyEnrollmentPayment(studentId, subjectId, church, paymentStatus) {
     const student = await this.students.findById(studentId);
     if (!student)
       throw new Error("Estudiante no encontrado.");
@@ -894,6 +1043,190 @@ class ApplicationService {
     if (!updated)
       throw new Error("Estudiante no encontrado.");
     return updated;
+  }
+  // --- Finanzas ---
+  async listPayments() {
+    return this.payments.findAll();
+  }
+  async registerPayment(input) {
+    const studentId = String(input.studentId ?? "");
+    const subjectId = String(input.subjectId ?? "");
+    const church = input.church;
+    const paymentMethod = input.paymentMethod;
+    const usdRate = Number(input.usdRate);
+    const paymentDate = parsePaymentDate(input.paymentDate);
+    if (!studentId)
+      throw new Error("Seleccione un estudiante.");
+    if (!subjectId)
+      throw new Error("Seleccione una materia.");
+    if (!church)
+      throw new Error("Seleccione la iglesia de la inscripción.");
+    if (!isPaymentMethod(paymentMethod)) {
+      throw new Error("Seleccione un modo de pago válido.");
+    }
+    if (!Number.isFinite(usdRate) || usdRate <= 0) {
+      throw new Error("Ingrese el valor del dólar al día del ingreso.");
+    }
+    const student = await this.students.findById(studentId);
+    if (!student)
+      throw new Error("Estudiante no encontrado.");
+    const enrollment = (student.enrollments ?? []).find((item) => String(item.subjectId) === subjectId && item.church === church);
+    if (!enrollment) {
+      throw new Error("El estudiante no está inscrito en esa materia.");
+    }
+    if (enrollment.paymentStatus === "paid") {
+      throw new Error("Esa materia ya tiene un ingreso. Registre el ingreso solo para deudas pendientes.");
+    }
+    const subject = await this.subjects.findById(subjectId);
+    if (!subject)
+      throw new Error("Materia no encontrada.");
+    const amountUsd = Number(subject.priceUsd) || 0;
+    const amountLocal = Math.round(amountUsd * usdRate * 100) / 100;
+    const reference = paymentMethod === "mobile" && typeof input.reference === "string" ? input.reference.trim() : "";
+    const payment = await this.payments.create({
+      studentId,
+      subjectId,
+      church,
+      paymentDate,
+      paymentMethod,
+      usdRate,
+      amountUsd,
+      amountLocal,
+      ...reference ? { reference } : {}
+    });
+    await this.applyEnrollmentPayment(studentId, subjectId, church, "paid");
+    await this.emit(createDomainEvent(EventTypes.PAYMENT_REGISTERED, payment.id, "Payment", {
+      paymentId: payment.id,
+      studentId,
+      subjectId,
+      church,
+      amountUsd,
+      amountLocal
+    }));
+    return payment;
+  }
+  async voidPayment(id) {
+    const payment = await this.payments.findById(id);
+    if (!payment)
+      throw new Error("Ingreso no encontrado.");
+    const deleted = await this.payments.delete(id);
+    if (!deleted)
+      throw new Error("Ingreso no encontrado.");
+    const student = await this.students.findById(payment.studentId);
+    if (student) {
+      const stillEnrolled = (student.enrollments ?? []).some((enrollment) => String(enrollment.subjectId) === String(payment.subjectId) && enrollment.church === payment.church);
+      if (stillEnrolled) {
+        await this.applyEnrollmentPayment(payment.studentId, payment.subjectId, payment.church, "debt");
+      }
+    }
+    await this.emit(createDomainEvent(EventTypes.PAYMENT_VOIDED, payment.id, "Payment", {
+      paymentId: payment.id,
+      studentId: payment.studentId,
+      subjectId: payment.subjectId,
+      church: payment.church
+    }));
+  }
+  async listOutflows() {
+    return this.outflows.findAll();
+  }
+  async registerOutflow(input) {
+    const paymentMethod = input.paymentMethod;
+    const usdRate = Number(input.usdRate);
+    const amountUsd = Number(input.amountUsd);
+    const outflowDate = parsePaymentDate(input.outflowDate);
+    const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+    if (!reason)
+      throw new Error("Ingrese el motivo de la salida.");
+    if (!isPaymentMethod(paymentMethod)) {
+      throw new Error("Seleccione un modo de pago válido.");
+    }
+    if (!Number.isFinite(usdRate) || usdRate <= 0) {
+      throw new Error("Ingrese el valor del dólar al día de la salida.");
+    }
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+      throw new Error("Ingrese el monto de la salida en dólares.");
+    }
+    const amountLocal = Math.round(amountUsd * usdRate * 100) / 100;
+    const reference = paymentMethod === "mobile" && typeof input.reference === "string" ? input.reference.trim() : "";
+    const outflow = await this.outflows.create({
+      outflowDate,
+      reason,
+      paymentMethod,
+      usdRate,
+      amountUsd,
+      amountLocal,
+      ...reference ? { reference } : {}
+    });
+    await this.emit(createDomainEvent(EventTypes.OUTFLOW_REGISTERED, outflow.id, "Outflow", {
+      outflowId: outflow.id,
+      reason,
+      amountUsd,
+      amountLocal
+    }));
+    return outflow;
+  }
+  async voidOutflow(id) {
+    const outflow = await this.outflows.findById(id);
+    if (!outflow)
+      throw new Error("Salida no encontrada.");
+    const deleted = await this.outflows.delete(id);
+    if (!deleted)
+      throw new Error("Salida no encontrada.");
+    await this.emit(createDomainEvent(EventTypes.OUTFLOW_VOIDED, outflow.id, "Outflow", {
+      outflowId: outflow.id,
+      reason: outflow.reason
+    }));
+  }
+  async listOtherIncomes() {
+    return this.incomes.findAll();
+  }
+  async registerOtherIncome(input) {
+    const paymentMethod = input.paymentMethod;
+    const usdRate = Number(input.usdRate);
+    const amountUsd = Number(input.amountUsd);
+    const incomeDate = parsePaymentDate(input.incomeDate);
+    const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+    if (!reason)
+      throw new Error("Ingrese el motivo del ingreso.");
+    if (!isPaymentMethod(paymentMethod)) {
+      throw new Error("Seleccione un modo de pago válido.");
+    }
+    if (!Number.isFinite(usdRate) || usdRate <= 0) {
+      throw new Error("Ingrese el valor del dólar al día del ingreso.");
+    }
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+      throw new Error("Ingrese el monto del ingreso en dólares.");
+    }
+    const amountLocal = Math.round(amountUsd * usdRate * 100) / 100;
+    const reference = paymentMethod === "mobile" && typeof input.reference === "string" ? input.reference.trim() : "";
+    const income = await this.incomes.create({
+      incomeDate,
+      reason,
+      paymentMethod,
+      usdRate,
+      amountUsd,
+      amountLocal,
+      ...reference ? { reference } : {}
+    });
+    await this.emit(createDomainEvent(EventTypes.INCOME_REGISTERED, income.id, "Income", {
+      incomeId: income.id,
+      reason,
+      amountUsd,
+      amountLocal
+    }));
+    return income;
+  }
+  async voidOtherIncome(id) {
+    const income = await this.incomes.findById(id);
+    if (!income)
+      throw new Error("Ingreso no encontrado.");
+    const deleted = await this.incomes.delete(id);
+    if (!deleted)
+      throw new Error("Ingreso no encontrado.");
+    await this.emit(createDomainEvent(EventTypes.INCOME_VOIDED, income.id, "Income", {
+      incomeId: income.id,
+      reason: income.reason
+    }));
   }
   // --- Profesores ---
   async listTeachers() {
@@ -1028,6 +1361,7 @@ class ApplicationService {
       }
     }
     await this.grades.deleteBySubjectId(id);
+    await this.payments.deleteBySubjectId(id);
     const deleted = await this.subjects.delete(id);
     if (!deleted)
       throw new Error("Materia no encontrada.");
@@ -1101,7 +1435,7 @@ class ApplicationService {
       prepared.push({
         subjectId: enrollment.subjectId,
         church: enrollment.church,
-        paymentStatus: enrollment.paymentStatus ?? existing?.paymentStatus ?? "debt",
+        paymentStatus: existing?.paymentStatus ?? "debt",
         ...teacherId ? { teacherId } : {}
       });
     }
@@ -1598,13 +1932,18 @@ function registerIpcHandlers() {
   ipcMain.handle("students:update", (_e, id, input) => service.updateStudent(id, input));
   ipcMain.handle("students:delete", (_e, id) => service.deleteStudent(id));
   ipcMain.handle(
-    "students:setEnrollmentPayment",
-    (_e, studentId, subjectId, church, paymentStatus) => service.setEnrollmentPayment(studentId, subjectId, church, paymentStatus)
-  );
-  ipcMain.handle(
     "students:retakeEnrollment",
     (_e, studentId, subjectId, church) => service.retakeEnrollment(studentId, subjectId, church)
   );
+  ipcMain.handle("payments:list", () => service.listPayments());
+  ipcMain.handle("payments:create", (_e, input) => service.registerPayment(input));
+  ipcMain.handle("payments:void", (_e, id) => service.voidPayment(id));
+  ipcMain.handle("outflows:list", () => service.listOutflows());
+  ipcMain.handle("outflows:create", (_e, input) => service.registerOutflow(input));
+  ipcMain.handle("outflows:void", (_e, id) => service.voidOutflow(id));
+  ipcMain.handle("incomes:list", () => service.listOtherIncomes());
+  ipcMain.handle("incomes:create", (_e, input) => service.registerOtherIncome(input));
+  ipcMain.handle("incomes:void", (_e, id) => service.voidOtherIncome(id));
   ipcMain.handle("teachers:list", () => service.listTeachers());
   ipcMain.handle("teachers:create", (_e, input) => service.createTeacher(input));
   ipcMain.handle("teachers:update", (_e, id, input) => service.updateTeacher(id, input));

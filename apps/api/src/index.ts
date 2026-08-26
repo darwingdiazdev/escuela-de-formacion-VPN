@@ -92,7 +92,7 @@ function requireAuth(req: AuthedRequest, res: express.Response, next: express.Ne
 
 function requireAdmin(req: AuthedRequest, res: express.Response, next: express.NextFunction) {
   if (req.user?.role !== "admin") {
-    res.status(403).json({ error: "No tiene permisos para administrar usuarios." });
+    res.status(403).json({ error: "No tiene permisos de administrador." });
     return;
   }
   next();
@@ -223,22 +223,92 @@ async function start() {
   );
 
   app.post(
-    "/students/:id/enrollment-payment",
-    requireAuth,
-    asyncHandler(async (req, res) => {
-      const { subjectId, church, paymentStatus } = req.body;
-      res.json(
-        await service.setEnrollmentPayment(paramId(req), subjectId, church, paymentStatus),
-      );
-    }),
-  );
-
-  app.post(
     "/students/:id/retake-enrollment",
     requireAuth,
     asyncHandler(async (req, res) => {
       const { subjectId, church } = req.body;
       res.json(await service.retakeEnrollment(paramId(req), subjectId, church));
+    }),
+  );
+
+  app.get(
+    "/payments",
+    requireAuth,
+    asyncHandler(async (_req, res) => {
+      res.json(await service.listPayments());
+    }),
+  );
+
+  app.post(
+    "/payments",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const payment = await service.registerPayment(req.body);
+      res.status(201).json(payment);
+    }),
+  );
+
+  app.delete(
+    "/payments/:id",
+    requireAuth,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      await service.voidPayment(paramId(req));
+      res.status(204).send();
+    }),
+  );
+
+  app.get(
+    "/outflows",
+    requireAuth,
+    asyncHandler(async (_req, res) => {
+      res.json(await service.listOutflows());
+    }),
+  );
+
+  app.post(
+    "/outflows",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const outflow = await service.registerOutflow(req.body);
+      res.status(201).json(outflow);
+    }),
+  );
+
+  app.delete(
+    "/outflows/:id",
+    requireAuth,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      await service.voidOutflow(paramId(req));
+      res.status(204).send();
+    }),
+  );
+
+  app.get(
+    "/incomes",
+    requireAuth,
+    asyncHandler(async (_req, res) => {
+      res.json(await service.listOtherIncomes());
+    }),
+  );
+
+  app.post(
+    "/incomes",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const income = await service.registerOtherIncome(req.body);
+      res.status(201).json(income);
+    }),
+  );
+
+  app.delete(
+    "/incomes/:id",
+    requireAuth,
+    requireAdmin,
+    asyncHandler(async (req, res) => {
+      await service.voidOtherIncome(paramId(req));
+      res.status(204).send();
     }),
   );
 
@@ -358,6 +428,9 @@ async function start() {
       "/teachers",
       "/subjects",
       "/grades",
+      "/payments",
+      "/outflows",
+      "/incomes",
     ].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   }
 

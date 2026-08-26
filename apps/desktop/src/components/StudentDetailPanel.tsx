@@ -24,12 +24,10 @@ interface StudentDetailPanelProps {
 
 function CourseCard({
   item,
-  onTogglePayment,
   onRetake,
   busy,
 }: {
   item: StudentCourseSummary;
-  onTogglePayment: (item: StudentCourseSummary) => void;
   onRetake: (item: StudentCourseSummary) => void;
   busy: boolean;
 }) {
@@ -65,14 +63,6 @@ function CourseCard({
         <span className={`payment-badge${paid ? " is-paid" : " is-debt"}`}>
           {formatPaymentStatus(item.enrollment.paymentStatus)}
         </span>
-        <button
-          type="button"
-          className="btn btn-secondary btn-xs"
-          disabled={busy}
-          onClick={() => onTogglePayment(item)}
-        >
-          {paid ? "Deuda" : "Pagado"}
-        </button>
         {item.status === "failed" && (
           <button
             type="button"
@@ -115,25 +105,6 @@ export function StudentDetailPanel({
     () => computePensumProgress(student, subjects, studentGrades, teachers),
     [student, subjects, studentGrades, teachers],
   );
-
-  async function handleTogglePayment(item: StudentCourseSummary) {
-    setActionError(null);
-    setBusy(true);
-    try {
-      const nextStatus = item.enrollment.paymentStatus === "paid" ? "debt" : "paid";
-      await window.api.students.setEnrollmentPayment(
-        student.id,
-        item.enrollment.subjectId,
-        item.enrollment.church,
-        nextStatus,
-      );
-      await onRefresh();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Error al actualizar pago");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function handleRetake(item: StudentCourseSummary) {
     setActionError(null);
@@ -191,6 +162,7 @@ export function StudentDetailPanel({
       )}
 
       {actionError && <p className="field-hint error-text">{actionError}</p>}
+      <p className="field-hint">Los ingresos se registran en el módulo Finanzas.</p>
 
       {summaries.length === 0 ? (
         <p className="empty-state">Este estudiante no tiene materias inscritas.</p>
@@ -207,7 +179,6 @@ export function StudentDetailPanel({
                     key={`${item.enrollment.subjectId}-${item.enrollment.church}`}
                     item={item}
                     busy={busy}
-                    onTogglePayment={handleTogglePayment}
                     onRetake={handleRetake}
                   />
                 ))}
@@ -226,7 +197,6 @@ export function StudentDetailPanel({
                     key={`${item.enrollment.subjectId}-${item.enrollment.church}`}
                     item={item}
                     busy={busy}
-                    onTogglePayment={handleTogglePayment}
                     onRetake={handleRetake}
                   />
                 ))}
@@ -245,7 +215,6 @@ export function StudentDetailPanel({
                     key={`${item.enrollment.subjectId}-${item.enrollment.church}`}
                     item={item}
                     busy={busy}
-                    onTogglePayment={handleTogglePayment}
                     onRetake={handleRetake}
                   />
                 ))}

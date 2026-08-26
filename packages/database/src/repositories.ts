@@ -1,10 +1,16 @@
 import { ObjectId } from "mongodb";
 import type {
+  CreateFinanceOtherIncomeInput,
+  CreateFinanceOutflowInput,
+  CreateFinancePaymentInput,
   CreateGradeInput,
   CreateStudentInput,
   CreateSubjectInput,
   CreateTeacherInput,
   CreateUserInput,
+  FinanceOtherIncome,
+  FinanceOutflow,
+  FinancePayment,
   Grade,
   Student,
   StudentSubjectEnrollment,
@@ -460,5 +466,153 @@ export class GradeRepository {
       subjectId: { $in: referenceIdVariants(subjectId) },
     });
     return result.deletedCount;
+  }
+}
+
+export class FinancePaymentRepository {
+  async create(input: CreateFinancePaymentInput & { amountUsd: number; amountLocal: number }): Promise<FinancePayment> {
+    const database = getDatabase();
+    const timestamp = now();
+    const doc = {
+      studentId: String(input.studentId),
+      subjectId: String(input.subjectId),
+      church: input.church,
+      paymentDate: input.paymentDate,
+      paymentMethod: input.paymentMethod,
+      usdRate: input.usdRate,
+      amountUsd: input.amountUsd,
+      amountLocal: input.amountLocal,
+      ...(input.reference ? { reference: input.reference } : {}),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const result = await database.collection("payments").insertOne(doc);
+    return toEntity<FinancePayment>({ _id: result.insertedId, ...doc })!;
+  }
+
+  async findAll(): Promise<FinancePayment[]> {
+    const database = getDatabase();
+    const docs = await database
+      .collection("payments")
+      .find()
+      .sort({ paymentDate: -1, createdAt: -1 })
+      .toArray();
+    return toEntityList<FinancePayment>(docs);
+  }
+
+  async findById(id: string): Promise<FinancePayment | null> {
+    const database = getDatabase();
+    const doc = await database.collection("payments").findOne({ _id: new ObjectId(id) });
+    return toEntity<FinancePayment>(doc);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const database = getDatabase();
+    const result = await database.collection("payments").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+
+  async deleteByStudentId(studentId: string): Promise<number> {
+    const database = getDatabase();
+    const result = await database.collection("payments").deleteMany({
+      studentId: { $in: referenceIdVariants(studentId) },
+    });
+    return result.deletedCount;
+  }
+
+  async deleteBySubjectId(subjectId: string): Promise<number> {
+    const database = getDatabase();
+    const result = await database.collection("payments").deleteMany({
+      subjectId: { $in: referenceIdVariants(subjectId) },
+    });
+    return result.deletedCount;
+  }
+}
+
+export class FinanceOutflowRepository {
+  async create(
+    input: CreateFinanceOutflowInput & { amountLocal: number },
+  ): Promise<FinanceOutflow> {
+    const database = getDatabase();
+    const timestamp = now();
+    const doc = {
+      outflowDate: input.outflowDate,
+      reason: input.reason,
+      paymentMethod: input.paymentMethod,
+      usdRate: input.usdRate,
+      amountUsd: input.amountUsd,
+      amountLocal: input.amountLocal,
+      ...(input.reference ? { reference: input.reference } : {}),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const result = await database.collection("outflows").insertOne(doc);
+    return toEntity<FinanceOutflow>({ _id: result.insertedId, ...doc })!;
+  }
+
+  async findAll(): Promise<FinanceOutflow[]> {
+    const database = getDatabase();
+    const docs = await database
+      .collection("outflows")
+      .find()
+      .sort({ outflowDate: -1, createdAt: -1 })
+      .toArray();
+    return toEntityList<FinanceOutflow>(docs);
+  }
+
+  async findById(id: string): Promise<FinanceOutflow | null> {
+    const database = getDatabase();
+    const doc = await database.collection("outflows").findOne({ _id: new ObjectId(id) });
+    return toEntity<FinanceOutflow>(doc);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const database = getDatabase();
+    const result = await database.collection("outflows").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+}
+
+export class FinanceOtherIncomeRepository {
+  async create(
+    input: CreateFinanceOtherIncomeInput & { amountLocal: number },
+  ): Promise<FinanceOtherIncome> {
+    const database = getDatabase();
+    const timestamp = now();
+    const doc = {
+      incomeDate: input.incomeDate,
+      reason: input.reason,
+      paymentMethod: input.paymentMethod,
+      usdRate: input.usdRate,
+      amountUsd: input.amountUsd,
+      amountLocal: input.amountLocal,
+      ...(input.reference ? { reference: input.reference } : {}),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const result = await database.collection("incomes").insertOne(doc);
+    return toEntity<FinanceOtherIncome>({ _id: result.insertedId, ...doc })!;
+  }
+
+  async findAll(): Promise<FinanceOtherIncome[]> {
+    const database = getDatabase();
+    const docs = await database
+      .collection("incomes")
+      .find()
+      .sort({ incomeDate: -1, createdAt: -1 })
+      .toArray();
+    return toEntityList<FinanceOtherIncome>(docs);
+  }
+
+  async findById(id: string): Promise<FinanceOtherIncome | null> {
+    const database = getDatabase();
+    const doc = await database.collection("incomes").findOne({ _id: new ObjectId(id) });
+    return toEntity<FinanceOtherIncome>(doc);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const database = getDatabase();
+    const result = await database.collection("incomes").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
   }
 }

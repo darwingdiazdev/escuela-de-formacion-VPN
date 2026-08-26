@@ -14,13 +14,6 @@ const api = {
     create: (input) => electron.ipcRenderer.invoke("students:create", input),
     update: (id, input) => electron.ipcRenderer.invoke("students:update", id, input),
     delete: (id) => electron.ipcRenderer.invoke("students:delete", id),
-    setEnrollmentPayment: (studentId, subjectId, church, paymentStatus) => electron.ipcRenderer.invoke(
-      "students:setEnrollmentPayment",
-      studentId,
-      subjectId,
-      church,
-      paymentStatus
-    ),
     retakeEnrollment: (studentId, subjectId, church) => electron.ipcRenderer.invoke("students:retakeEnrollment", studentId, subjectId, church)
   },
   teachers: {
@@ -40,6 +33,21 @@ const api = {
     listAll: () => electron.ipcRenderer.invoke("grades:listAll"),
     create: (input) => electron.ipcRenderer.invoke("grades:create", input),
     update: (id, input) => electron.ipcRenderer.invoke("grades:update", id, input)
+  },
+  payments: {
+    list: () => electron.ipcRenderer.invoke("payments:list"),
+    create: (input) => electron.ipcRenderer.invoke("payments:create", input),
+    void: (id) => electron.ipcRenderer.invoke("payments:void", id)
+  },
+  outflows: {
+    list: () => electron.ipcRenderer.invoke("outflows:list"),
+    create: (input) => electron.ipcRenderer.invoke("outflows:create", input),
+    void: (id) => electron.ipcRenderer.invoke("outflows:void", id)
+  },
+  incomes: {
+    list: () => electron.ipcRenderer.invoke("incomes:list"),
+    create: (input) => electron.ipcRenderer.invoke("incomes:create", input),
+    void: (id) => electron.ipcRenderer.invoke("incomes:void", id)
   },
   export: {
     saveExcel: (data, defaultFileName) => electron.ipcRenderer.invoke("export:saveExcel", data, defaultFileName)

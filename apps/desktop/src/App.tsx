@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { SidebarBrand } from "./components/SidebarBrand";
 import { NAV_ICONS } from "./navIcons";
+import { FinancePage } from "./pages/FinancePage";
 import { GradesPage } from "./pages/GradesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { StudentsPage } from "./pages/StudentsPage";
@@ -10,13 +11,14 @@ import { UsersPage } from "./pages/UsersPage";
 import { useAuth } from "./useAuth";
 import { USER_ROLE_LABELS } from "./userForm";
 
-type Section = "students" | "teachers" | "subjects" | "grades" | "users";
+type Section = "students" | "teachers" | "subjects" | "grades" | "finance" | "users";
 
 const sections: { id: Section; label: string; adminOnly?: boolean }[] = [
   { id: "students", label: "Estudiantes" },
   { id: "subjects", label: "Materias" },
   { id: "teachers", label: "Profesores" },
   { id: "grades", label: "Notas" },
+  { id: "finance", label: "Finanzas" },
   { id: "users", label: "Usuarios", adminOnly: true },
 ];
 
@@ -104,6 +106,7 @@ export default function App() {
         {activeSection === "teachers" && <TeachersPage />}
         {activeSection === "subjects" && <SubjectsPage />}
         {activeSection === "grades" && <GradesPage />}
+        {activeSection === "finance" && <FinancePage />}
         {activeSection === "users" && <UsersPage />}
       </main>
     </div>

@@ -32,6 +32,12 @@ export function registerDefaultHandlers(
     "teacher.updated",
     "subject.created",
     "subject.updated",
+    "payment.registered",
+    "payment.voided",
+    "outflow.registered",
+    "outflow.voided",
+    "income.registered",
+    "income.voided",
   ];
 
   for (const eventType of allEventTypes) {

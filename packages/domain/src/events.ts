@@ -17,6 +17,12 @@ export const EventTypes = {
   TEACHER_UPDATED: "teacher.updated",
   SUBJECT_CREATED: "subject.created",
   SUBJECT_UPDATED: "subject.updated",
+  PAYMENT_REGISTERED: "payment.registered",
+  PAYMENT_VOIDED: "payment.voided",
+  OUTFLOW_REGISTERED: "outflow.registered",
+  OUTFLOW_VOIDED: "outflow.voided",
+  INCOME_REGISTERED: "income.registered",
+  INCOME_VOIDED: "income.voided",
 } as const;
 
 export type EventType = (typeof EventTypes)[keyof typeof EventTypes];
@@ -65,6 +71,46 @@ export interface SubjectCreatedPayload {
 export interface SubjectUpdatedPayload {
   subjectId: string;
   changes: Record<string, unknown>;
+}
+
+export interface PaymentRegisteredPayload {
+  paymentId: string;
+  studentId: string;
+  subjectId: string;
+  church: string;
+  amountUsd: number;
+  amountLocal: number;
+}
+
+export interface PaymentVoidedPayload {
+  paymentId: string;
+  studentId: string;
+  subjectId: string;
+  church: string;
+}
+
+export interface OutflowRegisteredPayload {
+  outflowId: string;
+  reason: string;
+  amountUsd: number;
+  amountLocal: number;
+}
+
+export interface OutflowVoidedPayload {
+  outflowId: string;
+  reason: string;
+}
+
+export interface IncomeRegisteredPayload {
+  incomeId: string;
+  reason: string;
+  amountUsd: number;
+  amountLocal: number;
+}
+
+export interface IncomeVoidedPayload {
+  incomeId: string;
+  reason: string;
 }
 
 function generateEventId(): string {
